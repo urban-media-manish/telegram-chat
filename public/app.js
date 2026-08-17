@@ -49,10 +49,13 @@ function initSSE() {
         const payload = JSON.parse(event.data);
         if (payload.type === 'new_message') {
           const msg = payload.message;
-          
+          const targetId = String(payload.userId || msg.userId);
+
           // If message is in active open chat room, render instantly (0ms)
-          if (activeChatUserId && String(activeChatUserId) === String(payload.userId || msg.userId)) {
+          if (activeChatUserId && String(activeChatUserId) === targetId) {
             appendMessageBubbleDirectly(msg);
+          } else if (!activeChatUserId && window.innerWidth > 768) {
+            selectConversation(targetId);
           }
 
           // Sound & OS Notification for customer messages
@@ -61,7 +64,7 @@ function initSSE() {
             showSystemNotification(`New Message from ${msg.userName || 'Customer'}`, msg.text || '[Media]', msg.userId);
           }
 
-          // Refresh conversation sidebar badge & last message
+          // Refresh conversation sidebar badge & last message instantly
           loadConversations(true);
         } else if (payload.type === 'new_lead') {
           loadStats();

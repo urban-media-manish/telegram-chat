@@ -42,6 +42,7 @@ function broadcastChatEvent(eventData) {
   for (const client of sseClients) {
     try {
       client.write(message);
+      if (typeof client.flush === 'function') client.flush();
     } catch (e) {
       sseClients.delete(client);
     }
@@ -53,10 +54,13 @@ setEventBroadcaster(broadcastChatEvent);
 
 // Dedicated SSE Stream Endpoint
 app.get('/api/chat/events', (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  if (res.flushHeaders) res.flushHeaders();
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+    'Access-Control-Allow-Origin': '*'
+  });
 
   sseClients.add(res);
 
@@ -65,7 +69,7 @@ app.get('/api/chat/events', (req, res) => {
 
   const heartbeat = setInterval(() => {
     res.write(': keepalive\n\n');
-  }, 20000);
+  }, 15000);
 
   req.on('close', () => {
     clearInterval(heartbeat);

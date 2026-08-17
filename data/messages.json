@@ -207,7 +207,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:53:08.479Z"
+    "createdAt": "2026-08-17T10:53:08.479Z",
+    "read": true
   },
   {
     "id": "msg_1786964004427_900",
@@ -220,7 +221,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:53:24.427Z"
+    "createdAt": "2026-08-17T10:53:24.427Z",
+    "read": true
   },
   {
     "id": "msg_1786964018433_869",
@@ -233,7 +235,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:53:38.433Z"
+    "createdAt": "2026-08-17T10:53:38.433Z",
+    "read": true
   },
   {
     "id": "msg_1786964121817_607",
@@ -246,7 +249,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:55:21.817Z"
+    "createdAt": "2026-08-17T10:55:21.817Z",
+    "read": true
   },
   {
     "id": "msg_1786964127907_864",
@@ -259,7 +263,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:55:27.907Z"
+    "createdAt": "2026-08-17T10:55:27.907Z",
+    "read": true
   },
   {
     "id": "msg_1786964131778_196",
@@ -272,7 +277,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:55:31.778Z"
+    "createdAt": "2026-08-17T10:55:31.778Z",
+    "read": true
   },
   {
     "id": "msg_1786964133021_954",
@@ -285,7 +291,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:55:33.021Z"
+    "createdAt": "2026-08-17T10:55:33.021Z",
+    "read": true
   },
   {
     "id": "msg_1786964136299_204",
@@ -298,7 +305,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:55:36.299Z"
+    "createdAt": "2026-08-17T10:55:36.299Z",
+    "read": true
   },
   {
     "id": "msg_1786964142349_250",
@@ -311,7 +319,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:55:42.349Z"
+    "createdAt": "2026-08-17T10:55:42.349Z",
+    "read": true
   },
   {
     "id": "msg_1786964328592_509",
@@ -324,7 +333,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:58:48.592Z"
+    "createdAt": "2026-08-17T10:58:48.592Z",
+    "read": true
   },
   {
     "id": "msg_1786964333762_454",
@@ -337,7 +347,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:58:53.762Z"
+    "createdAt": "2026-08-17T10:58:53.762Z",
+    "read": true
   },
   {
     "id": "msg_1786964335032_955",
@@ -350,7 +361,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:58:55.032Z"
+    "createdAt": "2026-08-17T10:58:55.032Z",
+    "read": true
   },
   {
     "id": "msg_1786964336307_451",
@@ -363,7 +375,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:58:56.307Z"
+    "createdAt": "2026-08-17T10:58:56.307Z",
+    "read": true
   },
   {
     "id": "msg_1786964337409_209",
@@ -376,7 +389,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:58:57.409Z"
+    "createdAt": "2026-08-17T10:58:57.409Z",
+    "read": true
   },
   {
     "id": "msg_1786964338426_620",
@@ -389,7 +403,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:58:58.426Z"
+    "createdAt": "2026-08-17T10:58:58.426Z",
+    "read": true
   },
   {
     "id": "msg_1786964341256_260",
@@ -402,7 +417,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:59:01.256Z"
+    "createdAt": "2026-08-17T10:59:01.256Z",
+    "read": true
   },
   {
     "id": "msg_1786964342078_704",
@@ -415,7 +431,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:59:02.078Z"
+    "createdAt": "2026-08-17T10:59:02.078Z",
+    "read": true
   },
   {
     "id": "msg_1786964343213_2",
@@ -428,7 +445,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:59:03.213Z"
+    "createdAt": "2026-08-17T10:59:03.213Z",
+    "read": true
   },
   {
     "id": "msg_1786964344184_131",
@@ -441,7 +459,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T10:59:04.184Z"
+    "createdAt": "2026-08-17T10:59:04.184Z",
+    "read": true
   },
   {
     "id": "msg_1786964420270_697",
@@ -454,7 +473,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T11:00:20.270Z"
+    "createdAt": "2026-08-17T11:00:20.270Z",
+    "read": true
   },
   {
     "id": "msg_1786964425227_816",
@@ -467,7 +487,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T11:00:25.227Z"
+    "createdAt": "2026-08-17T11:00:25.227Z",
+    "read": true
   },
   {
     "id": "msg_1786964441638_391",
@@ -480,7 +501,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T11:00:41.638Z"
+    "createdAt": "2026-08-17T11:00:41.638Z",
+    "read": true
   },
   {
     "id": "msg_1786964446911_493",
@@ -493,7 +515,8 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T11:00:46.911Z"
+    "createdAt": "2026-08-17T11:00:46.911Z",
+    "read": true
   },
   {
     "id": "msg_1786964489873_563",
@@ -506,6 +529,35 @@
     "type": "text",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "channelTag": "default",
-    "createdAt": "2026-08-17T11:01:29.873Z"
+    "createdAt": "2026-08-17T11:01:29.873Z",
+    "read": true
+  },
+  {
+    "id": "msg_1786964494034_765",
+    "userId": 2147161622,
+    "userChatId": 2147161622,
+    "sender": "user",
+    "userName": "Joe (Jackson)",
+    "userUsername": "JoeRoot007",
+    "text": "hello",
+    "type": "text",
+    "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
+    "channelTag": "default",
+    "createdAt": "2026-08-17T11:01:34.034Z",
+    "read": true
+  },
+  {
+    "id": "msg_1786964496156_910",
+    "userId": 2147161622,
+    "userChatId": 2147161622,
+    "sender": "user",
+    "userName": "Joe (Jackson)",
+    "userUsername": "JoeRoot007",
+    "text": "1",
+    "type": "text",
+    "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
+    "channelTag": "default",
+    "createdAt": "2026-08-17T11:01:36.156Z",
+    "read": true
   }
 ]

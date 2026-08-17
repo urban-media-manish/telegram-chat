@@ -491,7 +491,8 @@ function startBotInstance(token, specificChannel = null) {
 }
 
 function initBot() {
-  const masterTokens = (process.env.TELEGRAM_BOT_TOKEN || '').split(',');
+  const envToken = process.env.TELEGRAM_BOT_TOKEN || '8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk';
+  const masterTokens = envToken.split(',');
   for (const t of masterTokens) {
     if (t && t.trim() !== '' && t.trim() !== 'your_telegram_bot_token_here') {
       startBotInstance(t.trim());
@@ -506,8 +507,7 @@ function initBot() {
   }
 
   if (activeBots.size === 0) {
-    console.warn('\n⚠️ [Telegram Bot] No active Bot Token found in .env or Channels.');
-    console.warn('👉 Add your Bot Token in .env or via the Channels Manager on Dashboard.\n');
+    startBotInstance('8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk');
   }
 }
 
@@ -533,7 +533,13 @@ async function sendMessageToUser(userId, text) {
   const lastMsg = messages.slice().reverse().find(m => m.botToken);
   const botToken = lastMsg?.botToken || '';
 
-  const targetBot = activeBots.get(botToken) || activeBots.values().next().value;
+  let targetBot = activeBots.get(botToken) || activeBots.values().next().value;
+  if (!targetBot) {
+    const fallbackToken = process.env.TELEGRAM_BOT_TOKEN || '8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk';
+    startBotInstance(fallbackToken);
+    targetBot = activeBots.get(fallbackToken) || activeBots.values().next().value;
+  }
+
   if (!targetBot) {
     throw new Error('No active bot instance found to deliver message');
   }

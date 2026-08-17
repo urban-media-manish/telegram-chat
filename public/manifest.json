@@ -1,0 +1,31 @@
+{
+  "id": "/chat",
+  "name": "TeleTrack Live Chat & Leads Panel",
+  "short_name": "TeleTrack",
+  "description": "WhatsApp-Style Telegram Bot Live Chat & Meta CAPI Panel",
+  "start_url": "/chat",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0f1d",
+  "theme_color": "#06b6d4",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

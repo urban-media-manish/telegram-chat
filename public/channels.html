@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Accounts & Channels — TeleTrack</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0f1d">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-logo">
+        <span class="logo-icon">⚡</span>
+      </div>
+      <div>
+        <h1 class="brand-title">TeleTrack CAPI</h1>
+        <p class="brand-subtitle">WhatsApp-Style Bot Chat & Meta Sync</p>
+      </div>
+    </div>
+
+    <!-- Page Nav Links -->
+    <nav class="main-nav-links">
+      <a href="/chat" class="nav-link-btn">💬 Live Chat</a>
+      <a href="/leads" class="nav-link-btn">📋 Leads History</a>
+      <a href="/channels" class="nav-link-btn active">👤 Accounts & Channels</a>
+      <a href="/links" class="nav-link-btn">🎯 Meta Ad Links</a>
+    </nav>
+
+    <div class="nav-actions">
+      <div class="live-indicator">
+        <span class="pulse-dot"></span> Live Sync Active
+      </div>
+      <button class="btn btn-outline btn-sm" id="btnToggleNotification">
+        🔔 Enable Notifications
+      </button>
+      <button class="btn btn-outline btn-pwa btn-sm" id="btnInstallApp">
+        📲 Add to Home Screen
+      </button>
+      <button class="btn btn-primary" id="btnOpenAddChannelModal">
+        + Add Account / Channel
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="dashboard-container">
+    
+    <div class="card">
+      <div class="card-header flex-between">
+        <div>
+          <h2 class="card-title">Telegram Accounts & Multi-Bot Channels</h2>
+          <p class="card-desc">Configure your personal Telegram usernames, custom welcome messages, and per-account Meta Pixels.</p>
+        </div>
+      </div>
+
+      <div class="channels-grid" id="channelsListContainer">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal: Add/Edit Account / Agent -->
+  <div class="modal-overlay" id="channelModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Add Telegram Account / Agent</h3>
+        <button class="modal-close" id="btnCloseModal">&times;</button>
+      </div>
+      <form id="channelForm">
+        <div class="form-group">
+          <label>Campaign Tag / Code (Unique Identifier) *</label>
+          <input type="text" id="inputTag" required placeholder="e.g. ad1, insta_ad, vip, agent2" />
+          <small class="form-hint">This tag will be used in your ad URL: <code>https://t.me/YourBot?start=TAG</code></small>
+        </div>
+
+        <div class="form-group">
+          <label>Account / Agent Display Name *</label>
+          <input type="text" id="inputName" required placeholder="e.g. Manish Nagda (Main Account) or Agent Rahul" />
+        </div>
+
+        <div class="form-group">
+          <label>Personal Telegram Username (without @) *</label>
+          <input type="text" id="inputLink" required placeholder="e.g. manish_nagda" />
+        </div>
+
+        <div class="form-group">
+          <label>Button Text on Bot</label>
+          <input type="text" id="inputButtonText" placeholder="e.g. 💬 Direct Live Chat Active" />
+        </div>
+
+        <div class="form-group">
+          <label>Custom Welcome Message (Markdown supported)</label>
+          <textarea id="inputWelcome" rows="3" placeholder="👋 Welcome! Thank you for connecting with us. Send a message below to chat:"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Custom Telegram Bot Token (Optional)</label>
+          <input type="text" id="inputBotToken" placeholder="Leave blank to use Master Bot, or add specific Bot token" />
+          <small class="form-hint">If you want a dedicated bot for this account, paste its token here.</small>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Custom Meta Pixel ID (Optional)</label>
+            <input type="text" id="inputPixelId" placeholder="Leave blank to use Master Pixel from .env" />
+          </div>
+          <div class="form-group flex-1">
+            <label>Custom Meta Access Token (Optional)</label>
+            <input type="password" id="inputAccessToken" placeholder="Leave blank to use Master Token" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="btnCancelModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveChannel">Save Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "lead_1786946599779_95",
+    "userId": 7138258093,
+    "firstName": "Spark",
+    "lastName": "Spires",
+    "username": "sparkspires",
+    "channelTag": "ad1",
+    "channelName": "Facebook Ad #1 (Direct Bot Chat)",
+    "rawParam": "ad1",
+    "capiStatus": "skipped",
+    "capiTraceId": "",
+    "capiError": "Missing Meta credentials",
+    "createdAt": "2026-08-17T06:03:19.779Z"
+  },
+  {
+    "id": "lead_1786957488823_640",
+    "userId": 811932986,
+    "firstName": "Nick",
+    "lastName": "B",
+    "username": "NickB4all",
+    "languageCode": "en",
+    "channelTag": "ad1",
+    "channelName": "Facebook Ad #1 (Direct Bot Chat)",
+    "rawParam": "ad1",
+    "capiStatus": "skipped",
+    "capiTraceId": "",
+    "capiError": "Missing Meta credentials",
+    "createdAt": "2026-08-17T09:04:48.823Z"
+  },
+  {
+    "id": "lead_1786958538883_894",
+    "userId": 909940220,
+    "firstName": "DIZITAL VFX",
+    "lastName": "",
+    "username": "dizitalvfx",
+    "languageCode": "en",
+    "channelTag": "ad1",
+    "channelName": "Facebook Ad #1 (Direct Bot Chat)",
+    "rawParam": "ad1",
+    "capiStatus": "skipped",
+    "capiTraceId": "",
+    "capiError": "Missing Meta credentials",
+    "createdAt": "2026-08-17T09:22:18.883Z"
+  }
+]

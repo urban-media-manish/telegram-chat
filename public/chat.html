@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Live Chat Inbox — TeleTrack CAPI</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TeleTrack Chat">
+  <meta name="theme-color" content="#0a0f1d">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .fullscreen-chat-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+    .fullscreen-whatsapp {
+      width: 100%;
+      height: 100%;
+      border-radius: 0;
+      border: none;
+      min-height: unset;
+      box-shadow: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-logo">
+        <span class="logo-icon">⚡</span>
+      </div>
+      <div>
+        <h1 class="brand-title">TeleTrack CAPI</h1>
+        <p class="brand-subtitle">WhatsApp-Style Bot Chat & Meta Sync</p>
+      </div>
+    </div>
+
+    <!-- Page Nav Links -->
+    <nav class="main-nav-links">
+      <a href="/chat" class="nav-link-btn active">💬 Live Chat</a>
+      <a href="/leads" class="nav-link-btn">📋 Leads History</a>
+      <a href="/channels" class="nav-link-btn">👤 Accounts & Channels</a>
+      <a href="/links" class="nav-link-btn">🎯 Meta Ad Links</a>
+    </nav>
+
+    <div class="nav-actions">
+      <div class="live-indicator">
+        <span class="pulse-dot"></span> Live Bot Active
+      </div>
+      <button class="btn btn-outline btn-sm" id="btnToggleNotification">
+        🔔 Enable Notifications
+      </button>
+      <button class="btn btn-outline btn-pwa btn-sm" id="btnInstallApp">
+        📲 Add to Home Screen
+      </button>
+    </div>
+  </header>
+
+  <!-- Fullscreen WhatsApp Container -->
+  <div class="fullscreen-chat-body">
+    <div class="whatsapp-container fullscreen-whatsapp">
+      
+      <!-- Left Sidebar: Conversations List -->
+      <aside class="chat-sidebar" id="chatSidebar">
+        <div class="chat-sidebar-header">
+          <div class="chat-search-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="chatSearchInput" placeholder="Search customer name, @username, or ID..." />
+          </div>
+        </div>
+
+        <div class="conversation-list" id="conversationList">
+          <div class="empty-state py-8">
+            <div class="loading-spinner"></div>
+            <p class="text-muted mt-2">Loading chats...</p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Main Chat Area -->
+      <main class="chat-main" id="chatMain">
+        <!-- Empty State (No Chat Selected) -->
+        <div class="chat-empty-state" id="chatEmptyState">
+          <div class="empty-illustration">
+            <div class="empty-icon-bubble">💬</div>
+          </div>
+          <h3>WhatsApp-Style Live Chat</h3>
+          <p>Select any customer from the left list to view their messages and reply in real-time through the Bot!</p>
+          <div class="empty-tip">
+            <span>💡 Tip:</span> Install this on your phone's Home Screen for a dedicated app experience!
+          </div>
+        </div>
+
+        <!-- Active Chat Window (When User is Selected) -->
+        <div class="chat-window" id="chatWindow" style="display: none;">
+          
+          <!-- Chat Header -->
+          <div class="chat-window-header">
+            <button class="btn-back-chat" id="btnBackToSidebar">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+
+            <div class="chat-user-avatar" id="activeUserAvatar">U</div>
+
+            <div class="chat-user-info">
+              <div class="chat-user-name" id="activeUserName">Customer Name</div>
+              <div class="chat-user-meta">
+                <span id="activeUserHandle">@username</span> • 
+                <span class="badge-pill" id="activeUserTag">Ad 1</span> • 
+                <span class="user-id-text" id="activeUserId">ID: 123456</span>
+              </div>
+            </div>
+
+            <div class="chat-header-actions">
+              <a href="#" target="_blank" class="btn btn-outline btn-sm" id="btnOpenTgProfile">
+                👤 Open in Telegram
+              </a>
+            </div>
+          </div>
+
+          <!-- Messages Stream -->
+          <div class="chat-messages-container" id="chatMessagesContainer">
+            <!-- Populated by JS -->
+          </div>
+
+          <!-- Message Input Area -->
+          <div class="chat-input-bar">
+            <input type="text" id="chatMessageInput" placeholder="Type a message to send via Bot... (Press Enter to send)" autocomplete="off" />
+            <button class="btn-send-message" id="btnSendMessage">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              <span>Send</span>
+            </button>
+          </div>
+
+        </div>
+      </main>
+
+    </div>
+  <script src="app.js"></script>
+</body>
+</html>

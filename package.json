@@ -1,0 +1,19 @@
+{
+  "name": "telegram-meta-capi-tracker",
+  "version": "1.0.0",
+  "description": "Multi-Channel Telegram Bot with Meta Conversions API (CAPI) Lead Tracker and Real-Time Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

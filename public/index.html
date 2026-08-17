@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=/chat">
+  <script>window.location.replace('/chat');</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TeleTrack Live Chat & Meta CAPI Panel</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TeleTrack Chat">
+  <meta name="theme-color" content="#0a0f1d">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header / Navigation -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-logo">
+        <span class="logo-icon">⚡</span>
+      </div>
+      <div>
+        <h1 class="brand-title">TeleTrack Live</h1>
+        <p class="brand-subtitle">WhatsApp-Style Bot Chat & Meta CAPI</p>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <div class="live-indicator">
+        <span class="pulse-dot"></span> Live Chat Active
+      </div>
+      <a href="/chat" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, var(--accent-cyan), var(--accent-primary));">
+        💬 Open Fullscreen Live Chat
+      </a>
+      <button class="btn btn-outline btn-pwa" id="btnInstallApp" style="display: none;">
+        📲 Add to Home Screen
+      </button>
+      <button class="btn btn-outline" id="btnRefresh">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        Refresh
+      </button>
+      <button class="btn btn-outline" id="btnTestLead">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        Send Test Lead
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="dashboard-container">
+    
+    <!-- KPI Metrics Grid -->
+    <section class="metrics-grid">
+      <div class="metric-card gradient-blue">
+        <div class="metric-header">
+          <span class="metric-label">Today's Leads</span>
+          <span class="metric-badge">Live</span>
+        </div>
+        <div class="metric-value" id="kpiTodayLeads">0</div>
+        <div class="metric-subtext">Verified 1-on-1 Starts Today</div>
+      </div>
+
+      <div class="metric-card gradient-purple">
+        <div class="metric-header">
+          <span class="metric-label">Active Chats</span>
+          <span class="metric-icon">💬</span>
+        </div>
+        <div class="metric-value" id="kpiActiveChats">0</div>
+        <div class="metric-subtext">Conversations on Bot</div>
+      </div>
+
+      <div class="metric-card gradient-cyan">
+        <div class="metric-header">
+          <span class="metric-label">Total Leads</span>
+          <span class="metric-icon">👥</span>
+        </div>
+        <div class="metric-value" id="kpiTotalLeads">0</div>
+        <div class="metric-subtext">All-time tracked records</div>
+      </div>
+
+      <div class="metric-card gradient-emerald">
+        <div class="metric-header">
+          <span class="metric-label">Meta CAPI Sync Rate</span>
+          <span class="metric-badge success">Server</span>
+        </div>
+        <div class="metric-value" id="kpiSyncRate">100%</div>
+        <div class="metric-subtext" id="kpiSyncCount">0 Synced / 0 Failed</div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" data-tab="chatTab">
+        💬 Live Chat Inbox (<span id="tabUnreadBadge">0</span>)
+      </button>
+      <button class="tab-btn" data-tab="leadsTab">
+        📋 Leads History (<span id="tabLeadsCount">0</span>)
+      </button>
+      <button class="tab-btn" data-tab="channelsTab">
+        👤 Accounts & Channels (<span id="tabChannelsCount">0</span>)
+      </button>
+      <button class="tab-btn" data-tab="linksTab">
+        🎯 Meta Ads Link Generator
+      </button>
+    </div>
+
+    <!-- TAB 0: WHATSAPP-STYLE LIVE CHAT INBOX -->
+    <section id="chatTab" class="tab-content active">
+      <div class="whatsapp-container">
+        
+        <!-- Left Sidebar: Conversations List -->
+        <aside class="chat-sidebar" id="chatSidebar">
+          <div class="chat-sidebar-header">
+            <div class="chat-search-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="chatSearchInput" placeholder="Search customer name, @username, or ID..." />
+            </div>
+          </div>
+
+          <div class="conversation-list" id="conversationList">
+            <div class="empty-state py-8">
+              <div class="loading-spinner"></div>
+              <p class="text-muted mt-2">Loading chats...</p>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Right Main Chat Area -->
+        <main class="chat-main" id="chatMain">
+          <!-- Empty State (No Chat Selected) -->
+          <div class="chat-empty-state" id="chatEmptyState">
+            <div class="empty-illustration">
+              <div class="empty-icon-bubble">💬</div>
+            </div>
+            <h3>WhatsApp-Style Live Chat</h3>
+            <p>Select any customer from the left list to view their messages and reply in real-time through the Bot!</p>
+            <div class="empty-tip">
+              <span>💡 Tip:</span> You can install this on your phone's Home Screen for instant access!
+            </div>
+          </div>
+
+          <!-- Active Chat Window (When User is Selected) -->
+          <div class="chat-window" id="chatWindow" style="display: none;">
+            
+            <!-- Chat Header -->
+            <div class="chat-window-header">
+              <button class="btn-back-chat" id="btnBackToSidebar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              </button>
+
+              <div class="chat-user-avatar" id="activeUserAvatar">U</div>
+
+              <div class="chat-user-info">
+                <div class="chat-user-name" id="activeUserName">Customer Name</div>
+                <div class="chat-user-meta">
+                  <span id="activeUserHandle">@username</span> • 
+                  <span class="badge-pill" id="activeUserTag">Ad 1</span> • 
+                  <span class="user-id-text" id="activeUserId">ID: 123456</span>
+                </div>
+              </div>
+
+              <div class="chat-header-actions">
+                <a href="#" target="_blank" class="btn btn-outline btn-sm" id="btnOpenTgProfile">
+                  👤 Open in Telegram
+                </a>
+              </div>
+            </div>
+
+            <!-- Messages Stream -->
+            <div class="chat-messages-container" id="chatMessagesContainer">
+              <!-- Populated by JS -->
+            </div>
+
+            <!-- Message Input Area -->
+            <div class="chat-input-bar">
+              <input type="text" id="chatMessageInput" placeholder="Type a message to send via Bot... (Press Enter to send)" autocomplete="off" />
+              <button class="btn-send-message" id="btnSendMessage">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                <span>Send</span>
+              </button>
+            </div>
+
+          </div>
+        </main>
+
+      </div>
+    </section>
+
+    <!-- TAB 1: Live Leads Feed -->
+    <section id="leadsTab" class="tab-content">
+      <div class="card">
+        <div class="card-header flex-between">
+          <div class="filters-bar">
+            <div class="search-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="searchLeads" placeholder="Search by name, @username, ID, or param...">
+            </div>
+
+            <select id="channelFilter" class="select-dropdown">
+              <option value="all">All Accounts / Ads</option>
+            </select>
+          </div>
+
+          <div class="actions-group">
+            <a href="/api/export" class="btn btn-secondary" target="_blank" download>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Export CSV
+            </a>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>User / Customer</th>
+                <th>Target Account / Agent</th>
+                <th>Ad Start Parameter</th>
+                <th>Meta CAPI Status</th>
+                <th>Date & Time</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="leadsTableBody">
+              <tr>
+                <td colspan="6" class="text-center py-6">
+                  <div class="loading-spinner"></div>
+                  <p class="text-muted mt-2">Fetching live lead data...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Telegram Accounts / Agents Manager -->
+    <section id="channelsTab" class="tab-content">
+      <div class="card">
+        <div class="card-header flex-between">
+          <div>
+            <h2 class="card-title">Manage Telegram Accounts & Agents (1-on-1 Chat)</h2>
+            <p class="card-desc">Configure your personal Telegram usernames, custom welcome messages, and per-account Meta Pixels.</p>
+          </div>
+          <button class="btn btn-primary" id="btnOpenAddChannelModal">
+            + Add Telegram Account / Agent
+          </button>
+        </div>
+
+        <div class="channels-grid" id="channelsListContainer">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Meta Ads Link Generator -->
+    <section id="linksTab" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Meta Ad Destination URLs</h2>
+          <p class="card-desc">Copy these direct links to paste into your Facebook & Instagram Ads Manager (Website URL field).</p>
+        </div>
+
+        <div class="links-generator-list" id="adLinksList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal: Add/Edit Account / Agent -->
+  <div class="modal-overlay" id="channelModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Add Telegram Account / Agent</h3>
+        <button class="modal-close" id="btnCloseModal">&times;</button>
+      </div>
+      <form id="channelForm">
+        <div class="form-group">
+          <label>Campaign Tag / Code (Unique Identifier) *</label>
+          <input type="text" id="inputTag" required placeholder="e.g. ad1, insta_ad, vip, agent2" />
+          <small class="form-hint">This tag will be used in your ad URL: <code>https://t.me/YourBot?start=TAG</code></small>
+        </div>
+
+        <div class="form-group">
+          <label>Account / Agent Display Name *</label>
+          <input type="text" id="inputName" required placeholder="e.g. Manish Nagda (Main Account) or Agent Rahul" />
+        </div>
+
+        <div class="form-group">
+          <label>Personal Telegram Username (without @) *</label>
+          <input type="text" id="inputLink" required placeholder="e.g. manish_nagda" />
+          <small class="form-hint">Customer will be sent directly to <code>https://t.me/your_username</code> for 1-on-1 personal chat.</small>
+        </div>
+
+        <div class="form-group">
+          <label>Button Text on Bot</label>
+          <input type="text" id="inputButtonText" placeholder="e.g. 💬 👉 Chat with Me Personally" />
+        </div>
+
+        <div class="form-group">
+          <label>Custom Welcome Message (Markdown supported)</label>
+          <textarea id="inputWelcome" rows="3" placeholder="👋 Welcome! Thank you for connecting with us. Tap below to start 1-on-1 chat:"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Custom Telegram Bot Token (Optional)</label>
+          <input type="text" id="inputBotToken" placeholder="Leave blank to use Master Bot, or add specific Bot token" />
+          <small class="form-hint">If you want a dedicated bot for this account, paste its token here.</small>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Custom Meta Pixel ID (Optional)</label>
+            <input type="text" id="inputPixelId" placeholder="Leave blank to use Master Pixel from .env" />
+          </div>
+          <div class="form-group flex-1">
+            <label>Custom Meta Access Token (Optional)</label>
+            <input type="password" id="inputAccessToken" placeholder="Leave blank to use Master Token" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="btnCancelModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveChannel">Save Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

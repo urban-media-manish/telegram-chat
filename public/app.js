@@ -23,12 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
   loadChannels();
   loadLeads();
   loadConversations();
-
-  // Gentle safety sync (every 15s - Realtime SSE handles instant updates)
-  setInterval(() => {
-    loadConversations(true);
-    loadStats();
-  }, 15000);
 });
 
 // Real-Time Server-Sent Events (SSE) Socket Stream (0ms Instant Sync)

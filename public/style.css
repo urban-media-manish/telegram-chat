@@ -118,14 +118,7 @@ body {
   height: 8px;
   background-color: var(--accent-emerald);
   border-radius: 50%;
-  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-  animation: pulse 1.8s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
 /* Main Navigation Bar Links */
@@ -1164,13 +1157,7 @@ body {
   font-size: 0.9rem;
   line-height: 1.45;
   word-break: break-word;
-  animation: fadeIn 0.2s ease;
   position: relative;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 .bubble-user {

@@ -491,8 +491,12 @@ function startBotInstance(token, specificChannel = null) {
 }
 
 function initBot() {
-  const envToken = process.env.TELEGRAM_BOT_TOKEN || '8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk';
-  const masterTokens = envToken.split(',');
+  const masterTokens = [
+    process.env.TELEGRAM_BOT_TOKEN,
+    '8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY',
+    '8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk'
+  ];
+
   for (const t of masterTokens) {
     if (t && t.trim() !== '' && t.trim() !== 'your_telegram_bot_token_here') {
       startBotInstance(t.trim());
@@ -504,10 +508,6 @@ function initBot() {
     if (ch.botToken && ch.botToken.trim() !== '') {
       startBotInstance(ch.botToken.trim(), ch);
     }
-  }
-
-  if (activeBots.size === 0) {
-    startBotInstance('8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk');
   }
 }
 

@@ -43,5 +43,18 @@
     "botToken": "",
     "updatedAt": "2026-08-17T10:00:09.438Z",
     "createdAt": "2026-08-17T10:00:09.438Z"
+  },
+  {
+    "tag": "meta_ad",
+    "name": "Southboookbot",
+    "botUsername": "southboookbot",
+    "link": "https://t.me/sparkspires",
+    "buttonText": "💬 Direct Live Chat Active",
+    "welcomeMessage": "👋 **Welcome to Southbook!**\n\n🔥 Thank you for reaching out to us.\n\n💬 **Type and send your message below**, and our team will answer you directly here! 👇",
+    "pixelId": "3572072086292080",
+    "accessToken": "EAAaQv2w9ac0BSOxieaFegNLZCtvkrSCNJ9ABKbTvoiWMyJmXvv5zTNMZAZCIRAUUWQFuFb4twMZCfipshMAlHHroMHPM5u31In9qrtc7MFfPDblZCZCGPvMocqld5yzY4sOiXcywZAJBcy3bJzAxLBb75lD7v3JKLRWiCwTAV0JqKfrUFpZCTxZAB43MRGV8ndgZD",
+    "botToken": "8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY",
+    "updatedAt": "2026-08-17T19:12:00.000Z",
+    "createdAt": "2026-08-17T19:12:00.000Z"
   }
 ]

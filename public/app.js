@@ -21,13 +21,13 @@ document.addEventListener('DOMContentLoaded', () => {
   loadLeads();
   loadConversations();
 
-  // Polling for chat & data (every 2.5s)
+  // Fast instant chat poller (every 800ms for real-time speed)
   setInterval(() => {
     loadConversations(true);
     if (activeChatUserId) {
       loadActiveChatMessages(activeChatUserId, true);
     }
-  }, 2500);
+  }, 800);
 
   // Background refresh for leads/channels/stats (every 8s)
   setInterval(() => {

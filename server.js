@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const db = require('./db');
-const { initBot, registerChannelBot, sendMessageToUser } = require('./bot');
+const { initBot, registerChannelBot, sendMessageToUser, setEventBroadcaster } = require('./bot');
 const { sendMetaCapiLead } = require('./metaCapi');
 
 const app = express();
@@ -32,6 +32,45 @@ app.get('/channels', (req, res) => {
 
 app.get('/links', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'links.html'));
+});
+
+// Real-Time SSE Event Stream for 0ms Instant Chat Sync
+const sseClients = new Set();
+
+function broadcastChatEvent(eventData) {
+  const message = `data: ${JSON.stringify(eventData)}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.write(message);
+    } catch (e) {
+      sseClients.delete(client);
+    }
+  }
+}
+
+// Hook into Bot event stream
+setEventBroadcaster(broadcastChatEvent);
+
+// Dedicated SSE Stream Endpoint
+app.get('/api/chat/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  if (res.flushHeaders) res.flushHeaders();
+
+  sseClients.add(res);
+
+  // Send initial connected event
+  res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
+
+  const heartbeat = setInterval(() => {
+    res.write(': keepalive\n\n');
+  }, 20000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    sseClients.delete(res);
+  });
 });
 
 // ----------------- API ROUTES -----------------

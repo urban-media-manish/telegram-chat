@@ -5,6 +5,17 @@ const db = require('./db');
 
 // Map of active bot instances: token -> botInstance
 const activeBots = new Map();
+let realTimeBroadcaster = null;
+
+function setEventBroadcaster(fn) {
+  realTimeBroadcaster = fn;
+}
+
+function notifyRealtime(event) {
+  if (realTimeBroadcaster) {
+    try { realTimeBroadcaster(event); } catch (e) {}
+  }
+}
 
 async function getOrCreateUserTopic(bot, adminChatId, user, channelName, channelTag, botToken, userChatId) {
   let userTopic = db.getUserTopic(user.id);
@@ -156,6 +167,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
     });
 
     console.log(`💾 [Lead Stored] ID: ${leadRecord.id}, Channel: ${channelName}, CAPI: ${leadRecord.capiStatus}`);
+    notifyRealtime({ type: 'new_lead', lead: leadRecord });
 
     // Welcome Message (Direct in-bot chat greeting)
     let welcomeText = '';
@@ -313,7 +325,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           await targetBot.sendSticker(replyTarget.userChatId, msg.sticker.file_id);
         }
 
-        db.saveMessage({
+        const savedAdminMsg = db.saveMessage({
           userId: replyTarget.userId,
           userChatId: replyTarget.userChatId,
           sender: 'admin',
@@ -322,6 +334,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           botToken: replyTarget.botToken
         });
 
+        notifyRealtime({ type: 'new_message', message: savedAdminMsg, userId: replyTarget.userId });
         console.log(`📤 [Admin Replied] Sent to User ${replyTarget.userId} (${replyTarget.userName}): "${msg.text || '[Media]'}"`);
 
         await bot.sendMessage(chatId, `✅ <b>Delivered to ${escapeHtml(replyTarget.userName || 'User')}</b>`, {
@@ -344,7 +357,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
       const existingLeads = db.getLeads(500);
       const isLeadRecorded = existingLeads.some(l => String(l.userId) === String(user.id));
       if (!isLeadRecorded) {
-        db.addLead({
+        const autoLead = db.addLead({
           userId: user.id,
           firstName: user.first_name || '',
           lastName: user.last_name || '',
@@ -357,9 +370,10 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           capiTraceId: '',
           capiError: null
         });
+        notifyRealtime({ type: 'new_lead', lead: autoLead });
       }
 
-      db.saveMessage({
+      const savedUserMsg = db.saveMessage({
         userId: user.id,
         userChatId: chatId,
         sender: 'user',
@@ -368,6 +382,8 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
         text: msg.text || '[Media / Attachment]',
         botToken: botToken
       });
+
+      notifyRealtime({ type: 'new_message', message: savedUserMsg, userId: user.id });
 
       if (adminConfig.adminChatId) {
         // Option A: Send into User's Dedicated Forum Topic
@@ -457,10 +473,18 @@ function startBotInstance(token, specificChannel = null) {
   }
 
   try {
-    const bot = new TelegramBot(cleanToken, { polling: true });
+    const bot = new TelegramBot(cleanToken, {
+      polling: {
+        interval: 100, // High-speed 100ms instant update
+        autoStart: true,
+        params: {
+          timeout: 5
+        }
+      }
+    });
     attachBotListeners(bot, specificChannel, cleanToken);
     activeBots.set(cleanToken, bot);
-    console.log(`🤖 Telegram Bot [${cleanToken.slice(0, 10)}...] is active & listening for Live Chat.`);
+    console.log(`🤖 Telegram Bot [${cleanToken.slice(0, 10)}...] is active with Instant Real-Time Polling.`);
   } catch (err) {
     console.error(`❌ Failed to start Bot instance (${cleanToken.slice(0, 10)}...):`, err.message);
   }
@@ -528,6 +552,8 @@ async function sendMessageToUser(userId, text) {
     channelTag: lead?.channelTag || 'default'
   });
 
+  notifyRealtime({ type: 'new_message', message: record, userId: userId });
+
   // Sync to Admin Telegram as well
   const adminConfig = db.getAdminConfig();
   if (adminConfig.adminChatId && String(adminConfig.adminChatId) !== String(userChatId)) {
@@ -554,6 +580,7 @@ async function sendMessageToUser(userId, text) {
 module.exports = {
   initBot,
   registerChannelBot,
-  sendMessageToUser
+  sendMessageToUser,
+  setEventBroadcaster
 };
 

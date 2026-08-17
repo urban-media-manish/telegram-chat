@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   highlightCurrentNav();
   initPwaInstaller();
   initNotificationToggle();
+  initSSE();
   initChatEventListeners();
   initEventListeners();
   initChannelModalListeners();
@@ -21,13 +22,13 @@ document.addEventListener('DOMContentLoaded', () => {
   loadLeads();
   loadConversations();
 
-  // Fast instant chat poller (every 800ms for real-time speed)
+  // Fast background poller as safety fallback (every 2.5s)
   setInterval(() => {
     loadConversations(true);
     if (activeChatUserId) {
       loadActiveChatMessages(activeChatUserId, true);
     }
-  }, 800);
+  }, 2500);
 
   // Background refresh for leads/channels/stats (every 8s)
   setInterval(() => {
@@ -36,6 +37,71 @@ document.addEventListener('DOMContentLoaded', () => {
     loadLeads();
   }, 8000);
 });
+
+// Real-Time Server-Sent Events (SSE) Socket Stream (0ms Instant Sync)
+function initSSE() {
+  if (!('EventSource' in window)) return;
+  try {
+    const es = new EventSource('/api/chat/events');
+
+    es.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.type === 'new_message') {
+          const msg = payload.message;
+          
+          // If message is in active open chat room, render instantly (0ms)
+          if (activeChatUserId && String(activeChatUserId) === String(payload.userId || msg.userId)) {
+            appendMessageBubbleDirectly(msg);
+          }
+
+          // Sound & OS Notification for customer messages
+          if (msg.sender === 'user') {
+            playNotificationChime();
+            showSystemNotification(`New Message from ${msg.userName || 'Customer'}`, msg.text || '[Media]', msg.userId);
+          }
+
+          // Refresh conversation sidebar badge & last message
+          loadConversations(true);
+        } else if (payload.type === 'new_lead') {
+          loadStats();
+          loadLeads();
+          loadConversations(true);
+        }
+      } catch (err) {}
+    };
+
+    es.onerror = () => {
+      // Reconnects automatically
+    };
+  } catch (err) {
+    console.warn('SSE connection notice:', err);
+  }
+}
+
+// Directly append message bubble in 0ms without full DOM reload
+function appendMessageBubbleDirectly(m) {
+  const container = document.getElementById('chatMessagesContainer');
+  if (!container) return;
+
+  // Remove empty state if present
+  const emptyState = container.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+
+  const isAdmin = m.sender === 'admin';
+  const timeFormatted = formatTimeOnly(m.createdAt || new Date());
+
+  const bubbleDiv = document.createElement('div');
+  bubbleDiv.className = `message-bubble ${isAdmin ? 'bubble-admin' : 'bubble-user'}`;
+  bubbleDiv.innerHTML = `
+    <div class="bubble-sender">${isAdmin ? '🛡️ You (via Bot)' : `👤 ${escapeHtml(m.userName || 'Customer')}`}</div>
+    <div class="bubble-text">${escapeHtml(m.text)}</div>
+    <div class="message-time">${timeFormatted} ${isAdmin ? '✓✓' : ''}</div>
+  `;
+
+  container.appendChild(bubbleDiv);
+  container.scrollTop = container.scrollHeight;
+}
 
 // Notification Toggle & Permission Handler
 function initNotificationToggle() {

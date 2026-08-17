@@ -1,6 +1,6 @@
 // TeleTrack CAPI & Live Chat Frontend Controller
 let allChannels = [];
-let botUsername = 'YourBotUsername';
+let botUsername = 'southboookbot';
 let activeChatUserId = null;
 let allConversations = [];
 let deferredInstallPrompt = null;
@@ -836,7 +836,7 @@ function renderAdLinks(channels) {
 
   let html = '';
   for (const ch of channels) {
-    const targetBot = (ch.botUsername ? ch.botUsername.replace(/^@/, '').trim() : '') || (ch.name && ch.name.toLowerCase().includes('bot') ? ch.name.replace(/^@/, '').trim() : '') || botUsername;
+    const targetBot = (ch.botUsername ? ch.botUsername.replace(/^@/, '').trim() : '') || botUsername;
     const standardUrl = `https://t.me/${targetBot}?start=${ch.tag}`;
     const dynamicUrl = `https://t.me/${targetBot}?start=${ch.tag}_{{ad.id}}`;
 

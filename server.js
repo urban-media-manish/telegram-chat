@@ -87,8 +87,8 @@ app.get('/api/chat/events', (req, res) => {
 app.get('/api/config', (req, res) => {
   res.json({
     success: true,
-    botUsername: process.env.TELEGRAM_BOT_USERNAME || 'manish_lead_bot',
-    personalUsername: process.env.PERSONAL_TELEGRAM_USERNAME || 'manish_nagda'
+    botUsername: process.env.TELEGRAM_BOT_USERNAME || 'southboookbot',
+    personalUsername: process.env.PERSONAL_TELEGRAM_USERNAME || 'sparkspires'
   });
 });
 

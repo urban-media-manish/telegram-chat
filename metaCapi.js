@@ -65,10 +65,23 @@ async function sendMetaCapiLead({
     }
   }
 
-  const eventData = {
+  const now = Math.floor(Date.now() / 1000);
+
+  const pageViewEvent = {
+    event_name: 'PageView',
+    event_time: now,
+    action_source: 'system_generated',
+    user_data: userData,
+    custom_data: {
+      page_title: channelName || 'Telegram Ad Channel',
+      start_param: param || 'none'
+    }
+  };
+
+  const leadEvent = {
     event_name: 'Lead',
-    event_time: Math.floor(Date.now() / 1000),
-    action_source: 'other',
+    event_time: now,
+    action_source: 'system_generated',
     user_data: userData,
     custom_data: {
       lead_source: 'Telegram Multi-Channel Bot',
@@ -79,13 +92,14 @@ async function sendMetaCapiLead({
   };
 
   const payload = {
-    data: [eventData],
+    data: [pageViewEvent, leadEvent],
     access_token: accessToken
   };
 
   // If testing with Meta Events Manager "Test events" tool
-  if (testEventCode && testEventCode.trim() !== '') {
-    payload.test_event_code = testEventCode.trim();
+  const effectiveTestCode = testEventCode || process.env.META_TEST_EVENT_CODE;
+  if (effectiveTestCode && effectiveTestCode.trim() !== '') {
+    payload.test_event_code = effectiveTestCode.trim();
   }
 
   try {

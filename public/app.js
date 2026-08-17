@@ -404,7 +404,7 @@ function renderConversationsList(convs) {
     const isActive = activeChatUserId && String(activeChatUserId) === String(c.userId);
     const initial = (c.userName ? c.userName.charAt(0) : 'U').toUpperCase();
     const timeFormatted = formatChatTime(c.lastMessageTime);
-    const unread = c.unreadCount || 0;
+    const unread = isActive ? 0 : (c.unreadCount || 0);
     const isUnreadClass = unread > 0 ? 'unread' : '';
 
     html += `
@@ -432,6 +432,13 @@ function renderConversationsList(convs) {
 window.selectConversation = async function(userId) {
   activeChatUserId = String(userId);
   const conv = allConversations.find(c => String(c.userId) === String(userId));
+
+  if (conv) {
+    conv.unreadCount = 0;
+  }
+
+  // Mark read in DB in background
+  fetch(`/api/chat/read/${userId}`, { method: 'POST' }).catch(() => {});
 
   const emptyState = document.getElementById('chatEmptyState');
   if (emptyState) emptyState.style.display = 'none';

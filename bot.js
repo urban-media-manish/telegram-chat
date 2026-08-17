@@ -340,11 +340,30 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
     if (!isAdminChat) {
       console.log(`💬 [User Message] From ${user.first_name} (ID: ${user.id}): "${msg.text || '[Media]'}"`);
 
+      // Ensure user is recorded in leads if not already
+      const existingLeads = db.getLeads(500);
+      const isLeadRecorded = existingLeads.some(l => String(l.userId) === String(user.id));
+      if (!isLeadRecorded) {
+        db.addLead({
+          userId: user.id,
+          firstName: user.first_name || '',
+          lastName: user.last_name || '',
+          username: user.username || '',
+          languageCode: user.language_code || 'en',
+          channelTag: 'ad1',
+          channelName: 'Facebook Ad #1 (Direct Bot Chat)',
+          rawParam: 'ad1',
+          capiStatus: 'skipped',
+          capiTraceId: '',
+          capiError: null
+        });
+      }
+
       db.saveMessage({
         userId: user.id,
         userChatId: chatId,
         sender: 'user',
-        userName: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+        userName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User ' + user.id,
         userUsername: user.username || '',
         text: msg.text || '[Media / Attachment]',
         botToken: botToken

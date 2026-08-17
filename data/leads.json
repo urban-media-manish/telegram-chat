@@ -42,5 +42,20 @@
     "capiTraceId": "",
     "capiError": "Missing Meta credentials",
     "createdAt": "2026-08-17T09:22:18.883Z"
+  },
+  {
+    "id": "lead_1786963968708_424",
+    "userId": 2147161622,
+    "firstName": "Joe",
+    "lastName": "(Jackson)",
+    "username": "JoeRoot007",
+    "languageCode": "en",
+    "channelTag": "ad1",
+    "channelName": "Facebook Ad #1 (Direct Bot Chat)",
+    "rawParam": "ad1",
+    "capiStatus": "skipped",
+    "capiTraceId": "",
+    "capiError": "Missing Meta credentials",
+    "createdAt": "2026-08-17T10:52:48.708Z"
   }
 ]

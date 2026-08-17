@@ -363,9 +363,9 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           lastName: user.last_name || '',
           username: user.username || '',
           languageCode: user.language_code || 'en',
-          channelTag: 'ad1',
-          channelName: 'Facebook Ad #1 (Direct Bot Chat)',
-          rawParam: 'ad1',
+          channelTag: specificChannel ? specificChannel.tag : 'meta_ad',
+          channelName: specificChannel ? specificChannel.name : 'Southboookbot',
+          rawParam: specificChannel ? specificChannel.tag : 'meta_ad',
           capiStatus: 'skipped',
           capiTraceId: '',
           capiError: null
@@ -380,7 +380,8 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
         userName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User ' + user.id,
         userUsername: user.username || '',
         text: msg.text || '[Media / Attachment]',
-        botToken: botToken
+        botToken: botToken,
+        channelTag: specificChannel ? specificChannel.tag : 'meta_ad'
       });
 
       notifyRealtime({ type: 'new_message', message: savedUserMsg, userId: user.id });

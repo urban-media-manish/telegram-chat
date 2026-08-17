@@ -33,8 +33,8 @@ async function sendMetaCapiLead({
   customAccessToken,
   channelName
 }) {
-  const pixelId = customPixelId || process.env.META_PIXEL_ID;
-  const accessToken = customAccessToken || process.env.META_ACCESS_TOKEN;
+  const pixelId = customPixelId || process.env.META_PIXEL_ID || '3572072086292080';
+  const accessToken = customAccessToken || process.env.META_ACCESS_TOKEN || 'EAAaQv2w9ac0BSOxieaFegNLZCtvkrSCNJ9ABKbTvoiWMyJmXvv5zTNMZAZCIRAUUWQFuFb4twMZCfipshMAlHHroMHPM5u31In9qrtc7MFfPDblZCZCGPvMocqld5yzY4sOiXcywZAJBcy3bJzAxLBb75lD7v3JKLRWiCwTAV0JqKfrUFpZCTxZAB43MRGV8ndgZD';
   const apiVersion = process.env.META_GRAPH_API_VERSION || 'v21.0';
   const testEventCode = process.env.META_TEST_EVENT_CODE;
 

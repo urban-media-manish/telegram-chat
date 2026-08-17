@@ -1,50 +1,5 @@
 [
   {
-    "tag": "ad1",
-    "name": "Facebook Ad #1 (Direct Bot Chat)",
-    "link": "https://t.me/manish_nagda",
-    "buttonText": "💬 Direct Live Chat Active",
-    "welcomeMessage": "👋 **Welcome!**\n\n🔥 Thank you for reaching out from Facebook.\n\n💬 **We are online right now.** Type and send your message below, and our team will answer you directly here! 👇",
-    "pixelId": "",
-    "accessToken": "",
-    "botToken": "",
-    "createdAt": "2026-08-17T06:00:00.000Z"
-  },
-  {
-    "tag": "insta1",
-    "name": "Instagram Ad #1 (Direct Bot Chat)",
-    "link": "https://t.me/manish_nagda",
-    "buttonText": "💬 Direct Live Chat Active",
-    "welcomeMessage": "👋 **Welcome from Instagram!**\n\n🔥 We are ready to assist you right here.\n\n💬 **Type your question or message below**, and we will reply instantly! 👇",
-    "pixelId": "",
-    "accessToken": "",
-    "botToken": "",
-    "createdAt": "2026-08-17T06:00:00.000Z"
-  },
-  {
-    "tag": "vip",
-    "name": "VIP Direct Support Chat",
-    "link": "https://t.me/manish_nagda",
-    "buttonText": "💬 VIP Live Support",
-    "welcomeMessage": "⭐ **Welcome to VIP Priority Support!**\n\n🎯 Our expert team is live right now.\n\n💬 **Send your message directly in this chat:** 👇",
-    "pixelId": "",
-    "accessToken": "",
-    "botToken": "",
-    "createdAt": "2026-08-17T06:00:00.000Z"
-  },
-  {
-    "tag": "insta_vip",
-    "name": "Instagram VIP Ad",
-    "link": "https://t.me/manish_nagda",
-    "buttonText": "💬 Start Live Chat",
-    "welcomeMessage": "Welcome to VIP!",
-    "pixelId": "",
-    "accessToken": "",
-    "botToken": "",
-    "updatedAt": "2026-08-17T10:00:09.438Z",
-    "createdAt": "2026-08-17T10:00:09.438Z"
-  },
-  {
     "tag": "meta_ad",
     "name": "Southboookbot",
     "botUsername": "southboookbot",
@@ -54,7 +9,42 @@
     "pixelId": "3572072086292080",
     "accessToken": "EAAaQv2w9ac0BSOxieaFegNLZCtvkrSCNJ9ABKbTvoiWMyJmXvv5zTNMZAZCIRAUUWQFuFb4twMZCfipshMAlHHroMHPM5u31In9qrtc7MFfPDblZCZCGPvMocqld5yzY4sOiXcywZAJBcy3bJzAxLBb75lD7v3JKLRWiCwTAV0JqKfrUFpZCTxZAB43MRGV8ndgZD",
     "botToken": "8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY",
-    "updatedAt": "2026-08-17T19:12:00.000Z",
     "createdAt": "2026-08-17T19:12:00.000Z"
+  },
+  {
+    "tag": "ad1",
+    "name": "Facebook Ad #1",
+    "botUsername": "southboookbot",
+    "link": "https://t.me/sparkspires",
+    "buttonText": "💬 Direct Live Chat Active",
+    "welcomeMessage": "👋 **Welcome!**\n\n🔥 Thank you for reaching out from Facebook.\n\n💬 **We are online right now.** Type and send your message below, and our team will answer you directly here! 👇",
+    "pixelId": "3572072086292080",
+    "accessToken": "EAAaQv2w9ac0BSOxieaFegNLZCtvkrSCNJ9ABKbTvoiWMyJmXvv5zTNMZAZCIRAUUWQFuFb4twMZCfipshMAlHHroMHPM5u31In9qrtc7MFfPDblZCZCGPvMocqld5yzY4sOiXcywZAJBcy3bJzAxLBb75lD7v3JKLRWiCwTAV0JqKfrUFpZCTxZAB43MRGV8ndgZD",
+    "botToken": "8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY",
+    "createdAt": "2026-08-17T06:00:00.000Z"
+  },
+  {
+    "tag": "insta1",
+    "name": "Instagram Ad #1",
+    "botUsername": "southboookbot",
+    "link": "https://t.me/sparkspires",
+    "buttonText": "💬 Direct Live Chat Active",
+    "welcomeMessage": "👋 **Welcome from Instagram!**\n\n🔥 We are ready to assist you right here.\n\n💬 **Type your question or message below**, and we will reply instantly! 👇",
+    "pixelId": "3572072086292080",
+    "accessToken": "EAAaQv2w9ac0BSOxieaFegNLZCtvkrSCNJ9ABKbTvoiWMyJmXvv5zTNMZAZCIRAUUWQFuFb4twMZCfipshMAlHHroMHPM5u31In9qrtc7MFfPDblZCZCGPvMocqld5yzY4sOiXcywZAJBcy3bJzAxLBb75lD7v3JKLRWiCwTAV0JqKfrUFpZCTxZAB43MRGV8ndgZD",
+    "botToken": "8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY",
+    "createdAt": "2026-08-17T06:00:00.000Z"
+  },
+  {
+    "tag": "vip",
+    "name": "VIP Direct Support Chat",
+    "botUsername": "southboookbot",
+    "link": "https://t.me/sparkspires",
+    "buttonText": "💬 VIP Live Support",
+    "welcomeMessage": "⭐ **Welcome to VIP Priority Support!**\n\n🎯 Our expert team is live right now.\n\n💬 **Send your message directly in this chat:** 👇",
+    "pixelId": "3572072086292080",
+    "accessToken": "EAAaQv2w9ac0BSOxieaFegNLZCtvkrSCNJ9ABKbTvoiWMyJmXvv5zTNMZAZCIRAUUWQFuFb4twMZCfipshMAlHHroMHPM5u31In9qrtc7MFfPDblZCZCGPvMocqld5yzY4sOiXcywZAJBcy3bJzAxLBb75lD7v3JKLRWiCwTAV0JqKfrUFpZCTxZAB43MRGV8ndgZD",
+    "botToken": "8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY",
+    "createdAt": "2026-08-17T06:00:00.000Z"
   }
 ]

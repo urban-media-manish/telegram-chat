@@ -518,7 +518,7 @@ function registerChannelBot(channel) {
 }
 
 async function sendMessageToUser(userId, text) {
-  const MASTER_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk').trim();
+  const MASTER_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY').trim();
 
   // Ensure at least master bot is active
   if (!activeBots.has(MASTER_TOKEN)) {

@@ -166,27 +166,39 @@ const db = {
     const cleanTag = channelData.tag.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
     
     const existingIndex = channels.findIndex(c => c.tag.toLowerCase() === cleanTag);
-    const updatedChannel = {
+    if (existingIndex >= 0) {
+      channels[existingIndex] = {
+        ...channels[existingIndex],
+        name: channelData.name || channels[existingIndex].name,
+        botUsername: channelData.botUsername !== undefined ? channelData.botUsername : (channels[existingIndex].botUsername || ''),
+        link: channelData.link || channels[existingIndex].link,
+        buttonText: channelData.buttonText || channels[existingIndex].buttonText,
+        welcomeMessage: channelData.welcomeMessage || channels[existingIndex].welcomeMessage,
+        pixelId: channelData.pixelId !== undefined ? channelData.pixelId : channels[existingIndex].pixelId,
+        accessToken: channelData.accessToken !== undefined ? channelData.accessToken : channels[existingIndex].accessToken,
+        botToken: channelData.botToken !== undefined ? channelData.botToken : channels[existingIndex].botToken,
+        updatedAt: new Date().toISOString()
+      };
+      writeJsonFile(CHANNELS_FILE, channels);
+      return channels[existingIndex];
+    }
+
+    const newChannel = {
       tag: cleanTag,
       name: channelData.name || `Channel ${cleanTag}`,
+      botUsername: channelData.botUsername || '',
       link: channelData.link || 'https://t.me/',
       buttonText: channelData.buttonText || `Join ${channelData.name || cleanTag}`,
       welcomeMessage: channelData.welcomeMessage || `Welcome! Send a message here to chat directly:`,
       pixelId: channelData.pixelId ? channelData.pixelId.trim() : '',
       accessToken: channelData.accessToken ? channelData.accessToken.trim() : '',
       botToken: channelData.botToken ? channelData.botToken.trim() : '',
-      updatedAt: new Date().toISOString()
+      createdAt: new Date().toISOString()
     };
-
-    if (existingIndex >= 0) {
-      channels[existingIndex] = { ...channels[existingIndex], ...updatedChannel };
-    } else {
-      updatedChannel.createdAt = new Date().toISOString();
-      channels.push(updatedChannel);
-    }
+    channels.push(newChannel);
 
     writeJsonFile(CHANNELS_FILE, channels);
-    return updatedChannel;
+    return newChannel;
   },
 
   deleteChannel(tag) {

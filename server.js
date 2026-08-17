@@ -153,6 +153,7 @@ app.post('/api/channels', (req, res) => {
   const saved = db.saveChannel({
     tag,
     name: name || `Account ${tag}`,
+    botUsername: req.body.botUsername ? req.body.botUsername.replace(/^@/, '').trim() : '',
     link: cleanLink,
     buttonText,
     welcomeMessage,

@@ -836,14 +836,15 @@ function renderAdLinks(channels) {
 
   let html = '';
   for (const ch of channels) {
-    const standardUrl = `https://t.me/${botUsername}?start=${ch.tag}`;
-    const dynamicUrl = `https://t.me/${botUsername}?start=${ch.tag}_{{ad.id}}`;
+    const targetBot = (ch.botUsername ? ch.botUsername.replace(/^@/, '').trim() : '') || (ch.name && ch.name.toLowerCase().includes('bot') ? ch.name.replace(/^@/, '').trim() : '') || botUsername;
+    const standardUrl = `https://t.me/${targetBot}?start=${ch.tag}`;
+    const dynamicUrl = `https://t.me/${targetBot}?start=${ch.tag}_{{ad.id}}`;
 
     html += `
       <div class="link-item-card">
         <div class="link-item-header">
           <h4>${escapeHtml(ch.name)} <span class="tag-pill">${escapeHtml(ch.tag)}</span></h4>
-          <span class="text-muted text-sm">Routes to: ${escapeHtml(ch.link)}</span>
+          <span class="text-muted text-sm">Bot: <strong>@${escapeHtml(targetBot)}</strong> • Routes to: ${escapeHtml(ch.link)}</span>
         </div>
 
         <div class="link-input-group">
@@ -879,9 +880,10 @@ window.openChannelModal = function(channel = null) {
     document.getElementById('inputTag').value = channel.tag || '';
     document.getElementById('inputTag').disabled = true;
     document.getElementById('inputName').value = channel.name || '';
+    if (document.getElementById('inputBotUsername')) {
+      document.getElementById('inputBotUsername').value = channel.botUsername || channel.name || '';
+    }
     document.getElementById('inputLink').value = (channel.link || '').replace(/^https?:\/\/t\.me\//, '').replace(/^@/, '');
-    document.getElementById('inputButtonText').value = channel.buttonText || '';
-    document.getElementById('inputWelcome').value = channel.welcomeMessage || '';
     document.getElementById('inputBotToken').value = channel.botToken || '';
     document.getElementById('inputPixelId').value = channel.pixelId || '';
     document.getElementById('inputAccessToken').value = channel.accessToken || '';
@@ -890,9 +892,10 @@ window.openChannelModal = function(channel = null) {
     document.getElementById('inputTag').value = '';
     document.getElementById('inputTag').disabled = false;
     document.getElementById('inputName').value = '';
+    if (document.getElementById('inputBotUsername')) {
+      document.getElementById('inputBotUsername').value = '';
+    }
     document.getElementById('inputLink').value = '';
-    document.getElementById('inputButtonText').value = '💬 Direct Live Chat Active';
-    document.getElementById('inputWelcome').value = '👋 **Welcome!**\n\n🔥 Thank you for reaching out to us.\n\n💬 **Type and send your message below**, and our team will answer you directly here! 👇';
     document.getElementById('inputBotToken').value = '';
     document.getElementById('inputPixelId').value = '';
     document.getElementById('inputAccessToken').value = '';
@@ -927,6 +930,7 @@ async function handleSaveChannel(e) {
 
   const tag = document.getElementById('inputTag')?.value.trim();
   const name = document.getElementById('inputName')?.value.trim();
+  const botUser = document.getElementById('inputBotUsername')?.value.replace(/^@/, '').trim();
   const link = document.getElementById('inputLink')?.value.trim();
 
   if (!tag || !link) {
@@ -937,9 +941,8 @@ async function handleSaveChannel(e) {
   const payload = {
     tag: tag,
     name: name || tag,
+    botUsername: botUser || '',
     link: link,
-    buttonText: document.getElementById('inputButtonText')?.value.trim() || '',
-    welcomeMessage: document.getElementById('inputWelcome')?.value || '',
     botToken: document.getElementById('inputBotToken')?.value.trim() || '',
     pixelId: document.getElementById('inputPixelId')?.value.trim() || '',
     accessToken: document.getElementById('inputAccessToken')?.value.trim() || ''

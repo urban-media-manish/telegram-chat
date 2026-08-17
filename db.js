@@ -235,7 +235,7 @@ const db = {
     return true;
   },
 
-  // Leads (1 Unique Lead per User)
+  // Leads (1 Unique Lead per User, Sorted by Latest Activity)
   getLeads(limit = 100) {
     const leads = readJsonFile(LEADS_FILE, []);
     const uniqueMap = new Map();
@@ -247,7 +247,13 @@ const db = {
         uniqueMap.set(uid, l);
       }
     }
-    return Array.from(uniqueMap.values()).slice(0, limit);
+    const list = Array.from(uniqueMap.values());
+    list.sort((a, b) => {
+      const timeA = new Date(a.lastActiveAt || a.updatedAt || a.createdAt).getTime();
+      const timeB = new Date(b.lastActiveAt || b.updatedAt || b.createdAt).getTime();
+      return timeB - timeA;
+    });
+    return list.slice(0, limit);
   },
 
   addLead(leadData) {

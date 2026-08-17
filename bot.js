@@ -518,6 +518,13 @@ function registerChannelBot(channel) {
 }
 
 async function sendMessageToUser(userId, text) {
+  const MASTER_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk').trim();
+
+  // Ensure at least master bot is active
+  if (!activeBots.has(MASTER_TOKEN)) {
+    startBotInstance(MASTER_TOKEN);
+  }
+
   const leads = db.getLeads(500);
   const lead = leads.find(l => String(l.userId) === String(userId));
   
@@ -533,19 +540,23 @@ async function sendMessageToUser(userId, text) {
   const lastMsg = messages.slice().reverse().find(m => m.botToken);
   const botToken = lastMsg?.botToken || '';
 
-  let targetBot = activeBots.get(botToken) || activeBots.values().next().value;
+  let targetBot = (botToken ? activeBots.get(botToken) : null) || activeBots.get(MASTER_TOKEN) || activeBots.values().next().value;
   if (!targetBot) {
-    const fallbackToken = process.env.TELEGRAM_BOT_TOKEN || '8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk';
-    startBotInstance(fallbackToken);
-    targetBot = activeBots.get(fallbackToken) || activeBots.values().next().value;
+    startBotInstance(MASTER_TOKEN);
+    targetBot = activeBots.get(MASTER_TOKEN) || activeBots.values().next().value;
   }
 
   if (!targetBot) {
-    throw new Error('No active bot instance found to deliver message');
+    throw new Error('Telegram bot is starting up. Please try again in a few seconds.');
   }
 
-  await targetBot.sendMessage(userChatId, text);
-  console.log(`📤 [Live Chat Delivered] Sent message to User ${userChatId}: "${text}"`);
+  try {
+    await targetBot.sendMessage(userChatId, text);
+    console.log(`📤 [Live Chat Delivered] Sent message to User ${userChatId}: "${text}"`);
+  } catch (tgErr) {
+    console.error(`❌ Telegram send error to ${userChatId}:`, tgErr.message);
+    throw new Error(`Telegram Delivery: ${tgErr.message}`);
+  }
 
   // Save to DB
   const record = db.saveMessage({
@@ -554,7 +565,7 @@ async function sendMessageToUser(userId, text) {
     sender: 'admin',
     userName: 'Admin',
     text: text,
-    botToken: botToken,
+    botToken: botToken || MASTER_TOKEN,
     channelTag: lead?.channelTag || 'default'
   });
 
@@ -572,7 +583,7 @@ async function sendMessageToUser(userId, text) {
           userId: userId,
           userChatId: userChatId,
           userName: customerName,
-          botToken: botToken
+          botToken: botToken || MASTER_TOKEN
         });
       }
     } catch (err) {

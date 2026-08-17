@@ -261,10 +261,40 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
     // CASE 2: ADMIN REPLIES IN 1-ON-1 PRIVATE CHAT
     // ==========================================
     if (isAdminChat && !adminConfig.isForum && msg.reply_to_message) {
-      const replyTarget = db.getReplyMapping(msg.reply_to_message.message_id);
+      let replyTarget = db.getReplyMapping(msg.reply_to_message.message_id);
+
+      // Smart fallback: parse ID or @username from reply_to_message text
+      if (!replyTarget) {
+        const replyText = msg.reply_to_message.text || msg.reply_to_message.caption || '';
+        const idMatch = replyText.match(/ID:\s*([0-9]+)/i);
+        const userMatch = replyText.match(/@([a-zA-Z0-9_]+)/i);
+        const leads = db.getLeads(500);
+
+        if (idMatch && idMatch[1]) {
+          const targetUid = idMatch[1];
+          const foundLead = leads.find(l => String(l.userId) === String(targetUid));
+          replyTarget = {
+            userId: targetUid,
+            userChatId: targetUid,
+            userName: foundLead ? `${foundLead.firstName || ''} ${foundLead.lastName || ''}`.trim() : `User ${targetUid}`,
+            botToken: ''
+          };
+        } else if (userMatch && userMatch[1]) {
+          const targetUsername = userMatch[1].toLowerCase();
+          const foundLead = leads.find(l => l.username && l.username.toLowerCase() === targetUsername);
+          if (foundLead) {
+            replyTarget = {
+              userId: foundLead.userId,
+              userChatId: foundLead.userId,
+              userName: `${foundLead.firstName || ''} ${foundLead.lastName || ''}`.trim() || `@${foundLead.username}`,
+              botToken: ''
+            };
+          }
+        }
+      }
 
       if (!replyTarget) {
-        return bot.sendMessage(chatId, `⚠️ <i>Could not find which user to reply to. Please reply to the user card.</i>`, { parse_mode: 'HTML' });
+        return bot.sendMessage(chatId, `⚠️ <i>Could not find which user to reply to. Please reply directly to the forwarded user message card.</i>`, { parse_mode: 'HTML' });
       }
 
       const targetBot = activeBots.get(replyTarget.botToken) || bot;
@@ -294,7 +324,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
 
         console.log(`📤 [Admin Replied] Sent to User ${replyTarget.userId} (${replyTarget.userName}): "${msg.text || '[Media]'}"`);
 
-        await bot.sendMessage(chatId, `✅ <b>Delivered to ${replyTarget.userName || 'User'}</b>`, {
+        await bot.sendMessage(chatId, `✅ <b>Delivered to ${escapeHtml(replyTarget.userName || 'User')}</b>`, {
           parse_mode: 'HTML',
           reply_to_message_id: msg.message_id
         });
@@ -485,7 +515,15 @@ async function sendMessageToUser(userId, text) {
     const customerName = lead ? `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || 'Customer' : `User ${userId}`;
     const handle = lead?.username ? `@${lead.username}` : `ID: ${userId}`;
     try {
-      await targetBot.sendMessage(adminConfig.adminChatId, `📤 <b>Sent to ${escapeHtml(customerName)} (${handle}):</b>\n💬 ${escapeHtml(text)}`, { parse_mode: 'HTML' });
+      const adminSentMsg = await targetBot.sendMessage(adminConfig.adminChatId, `📤 <b>Sent to ${escapeHtml(customerName)} (${handle}):</b>\n💬 ${escapeHtml(text)}`, { parse_mode: 'HTML' });
+      if (adminSentMsg) {
+        db.saveReplyMapping(adminSentMsg.message_id, {
+          userId: userId,
+          userChatId: userChatId,
+          userName: customerName,
+          botToken: botToken
+        });
+      }
     } catch (err) {
       console.warn('Could not sync to admin TG:', err.message);
     }

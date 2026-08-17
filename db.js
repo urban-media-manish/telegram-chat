@@ -152,7 +152,34 @@ const db = {
 
   // Channels
   getChannels() {
-    return readJsonFile(CHANNELS_FILE, DEFAULT_CHANNELS);
+    const channels = readJsonFile(CHANNELS_FILE, DEFAULT_CHANNELS);
+    let modified = false;
+    for (const c of channels) {
+      if (c.link && c.link.includes('manish_nagda')) {
+        c.link = 'https://t.me/sparkspires';
+        modified = true;
+      }
+      if (!c.botUsername || c.botUsername === 'manish_lead_bot') {
+        c.botUsername = 'southboookbot';
+        modified = true;
+      }
+      if (!c.botToken || c.botToken.includes('8827730708')) {
+        c.botToken = '8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY';
+        modified = true;
+      }
+      if (!c.pixelId) {
+        c.pixelId = '3572072086292080';
+        modified = true;
+      }
+      if (!c.accessToken) {
+        c.accessToken = 'EAAaQv2w9ac0BSOxieaFegNLZCtvkrSCNJ9ABKbTvoiWMyJmXvv5zTNMZAZCIRAUUWQFuFb4twMZCfipshMAlHHroMHPM5u31In9qrtc7MFfPDblZCZCGPvMocqld5yzY4sOiXcywZAJBcy3bJzAxLBb75lD7v3JKLRWiCwTAV0JqKfrUFpZCTxZAB43MRGV8ndgZD';
+        modified = true;
+      }
+    }
+    if (modified) {
+      writeJsonFile(CHANNELS_FILE, channels);
+    }
+    return channels;
   },
 
   getChannelByTag(tag) {

@@ -196,14 +196,46 @@ const db = {
     return true;
   },
 
-  // Leads
+  // Leads (1 Unique Lead per User)
   getLeads(limit = 100) {
     const leads = readJsonFile(LEADS_FILE, []);
-    return leads.reverse().slice(0, limit);
+    const uniqueMap = new Map();
+    // Keep the most recent record per userId
+    for (let i = leads.length - 1; i >= 0; i--) {
+      const l = leads[i];
+      const uid = String(l.userId);
+      if (!uniqueMap.has(uid)) {
+        uniqueMap.set(uid, l);
+      }
+    }
+    return Array.from(uniqueMap.values()).slice(0, limit);
   },
 
   addLead(leadData) {
     const leads = readJsonFile(LEADS_FILE, []);
+    const existingIndex = leads.findIndex(l => String(l.userId) === String(leadData.userId));
+
+    if (existingIndex !== -1) {
+      // Update existing lead record rather than duplicating
+      const existing = leads[existingIndex];
+      existing.firstName = leadData.firstName || existing.firstName;
+      existing.lastName = leadData.lastName || existing.lastName;
+      existing.username = leadData.username || existing.username;
+      if (leadData.channelTag && leadData.channelTag !== 'default') {
+        existing.channelTag = leadData.channelTag;
+        existing.channelName = leadData.channelName || existing.channelName;
+        existing.rawParam = leadData.rawParam || existing.rawParam;
+      }
+      if (leadData.capiStatus && leadData.capiStatus !== 'skipped') {
+        existing.capiStatus = leadData.capiStatus;
+        existing.capiTraceId = leadData.capiTraceId || existing.capiTraceId;
+        existing.capiError = leadData.capiError;
+      }
+      existing.lastActiveAt = new Date().toISOString();
+      writeJsonFile(LEADS_FILE, leads);
+      return existing;
+    }
+
     const newLead = {
       id: 'lead_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
       userId: leadData.userId,

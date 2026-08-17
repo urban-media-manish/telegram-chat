@@ -162,5 +162,35 @@
     "capiTraceId": "",
     "capiError": "Missing Meta credentials",
     "createdAt": "2026-08-17T11:01:18.830Z"
+  },
+  {
+    "id": "lead_1786965180939_98",
+    "userId": 5212375937,
+    "firstName": "manish Nagda",
+    "lastName": "nagda",
+    "username": "manish_nagda",
+    "languageCode": "en",
+    "channelTag": "ad1",
+    "channelName": "Facebook Ad #1 (Direct Bot Chat)",
+    "rawParam": "ad1",
+    "capiStatus": "skipped",
+    "capiTraceId": "",
+    "capiError": "Missing Meta credentials",
+    "createdAt": "2026-08-17T11:13:00.939Z"
+  },
+  {
+    "id": "lead_1786965329636_483",
+    "userId": 8744659710,
+    "firstName": "Monu",
+    "lastName": "",
+    "username": "",
+    "languageCode": "en",
+    "channelTag": "ad1",
+    "channelName": "Facebook Ad #1 (Direct Bot Chat)",
+    "rawParam": "ad1",
+    "capiStatus": "skipped",
+    "capiTraceId": "",
+    "capiError": "Missing Meta credentials",
+    "createdAt": "2026-08-17T11:15:29.636Z"
   }
 ]

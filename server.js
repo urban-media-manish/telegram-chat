@@ -10,14 +10,18 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// Page Routes (Multi-Page System)
-app.get('/', (req, res) => {
-  res.redirect('/chat');
-});
-
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Page Routes
+// Health Check for Render
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// Page Routes (Multi-Page System)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+});
+
 app.get('/chat', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'chat.html'));
 });
@@ -270,10 +274,10 @@ app.post('/api/chat/read/:userId', (req, res) => {
 });
 
 // ----------------- START SERVER -----------------
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log('\n====================================================');
   console.log(`🌐 Multi-Channel Tracking Panel is LIVE at:`);
-  console.log(`👉 http://localhost:${PORT}`);
+  console.log(`👉 Port: ${PORT}`);
   console.log('====================================================\n');
 
   // Initialize Telegram Bot(s)

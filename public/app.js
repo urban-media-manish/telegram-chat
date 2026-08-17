@@ -5,6 +5,8 @@ let activeChatUserId = null;
 let allConversations = [];
 let deferredInstallPrompt = null;
 let lastKnownMessageCount = 0;
+let lastRenderedMessagesKey = '';
+let lastRenderedConvsKey = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   highlightCurrentNav();
@@ -22,20 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
   loadLeads();
   loadConversations();
 
-  // Fast background poller as safety fallback (every 2.5s)
+  // Gentle safety sync (every 15s - Realtime SSE handles instant updates)
   setInterval(() => {
     loadConversations(true);
-    if (activeChatUserId) {
-      loadActiveChatMessages(activeChatUserId, true);
-    }
-  }, 2500);
-
-  // Background refresh for leads/channels/stats (every 8s)
-  setInterval(() => {
     loadStats();
-    loadChannels();
-    loadLeads();
-  }, 8000);
+  }, 15000);
 });
 
 // Real-Time Server-Sent Events (SSE) Socket Stream (0ms Instant Sync)
@@ -397,6 +390,12 @@ function renderConversationsList(convs) {
     );
   }
 
+  const currentKey = filtered.map(c => c.userId + (c.lastMessageTime || '') + (c.unreadCount || 0) + (String(c.userId) === String(activeChatUserId) ? '_a' : '')).join('|');
+  if (currentKey && currentKey === lastRenderedConvsKey && container.children.length > 0) {
+    return; // Exact same conversation list, skip re-render to prevent blinking
+  }
+  lastRenderedConvsKey = currentKey;
+
   if (filtered.length === 0) {
     container.innerHTML = `
       <div class="empty-state py-8">
@@ -512,6 +511,12 @@ function renderMessagesStream(messages) {
   const container = document.getElementById('chatMessagesContainer');
   if (!container) return;
 
+  const currentKey = messages.map(m => m.id + (m.createdAt || '')).join('|');
+  if (currentKey && currentKey === lastRenderedMessagesKey && container.children.length > 0) {
+    return; // Exact same messages, skip re-render to prevent blinking
+  }
+  lastRenderedMessagesKey = currentKey;
+
   if (messages.length === 0) {
     container.innerHTML = `
       <div class="empty-state py-8 text-center">
@@ -539,7 +544,7 @@ function renderMessagesStream(messages) {
 
   container.innerHTML = html;
 
-  if (isNearBottom || container.children.length <= 1) {
+  if (isNearBottom) {
     container.scrollTop = container.scrollHeight;
   }
 }

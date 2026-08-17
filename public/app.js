@@ -406,6 +406,7 @@ function renderConversationsList(convs) {
     const timeFormatted = formatChatTime(c.lastMessageTime);
     const unread = isActive ? 0 : (c.unreadCount || 0);
     const isUnreadClass = unread > 0 ? 'unread' : '';
+    const botName = c.channelName || c.channelTag || 'Main Bot';
 
     html += `
       <div class="chat-contact-item ${isActive ? 'active' : ''}" onclick="selectConversation('${c.userId}')">
@@ -419,6 +420,7 @@ function renderConversationsList(convs) {
             <span class="contact-preview ${isUnreadClass}">
               ${c.lastMessageSender === 'admin' ? '<span style="color:var(--accent-cyan);">You: </span>' : ''}${escapeHtml(c.lastMessage || 'Started bot')}
             </span>
+            <span class="bot-badge-pill" title="Bot: ${escapeHtml(botName)}">🤖 ${escapeHtml(botName)}</span>
             ${unread > 0 ? `<span class="unread-badge">${unread}</span>` : ''}
           </div>
         </div>
@@ -459,7 +461,7 @@ window.selectConversation = async function(userId) {
     if (handleEl) handleEl.textContent = conv.userUsername ? `@${conv.userUsername}` : 'No username';
 
     const tagEl = document.getElementById('activeUserTag');
-    if (tagEl) tagEl.textContent = conv.channelTag || 'Direct';
+    if (tagEl) tagEl.textContent = `🤖 ${conv.channelName || conv.channelTag || 'Main Bot'}`;
 
     const idEl = document.getElementById('activeUserId');
     if (idEl) idEl.textContent = `ID: ${conv.userId}`;

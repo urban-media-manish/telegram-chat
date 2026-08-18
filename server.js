@@ -217,8 +217,8 @@ app.post('/api/test-lead', async (req, res) => {
 });
 
 // 7. Export Leads as CSV
-app.get('/api/export', (req, res) => {
-  const leads = db.getLeads(5000);
+app.get('/api/export', async (req, res) => {
+  const leads = await db.getLeadsAsync(5000);
   let csv = 'ID,Date Time,Telegram User ID,Name,Username,Channel Tag,Channel Name,Start Param,Meta CAPI Status,Trace ID\n';
 
   for (const l of leads) {
@@ -226,8 +226,8 @@ app.get('/api/export', (req, res) => {
     const username = l.username ? `@${l.username}` : 'N/A';
     const channelName = `"${(l.channelName || '').replace(/"/g, '""')}"`;
     const param = `"${(l.rawParam || '').replace(/"/g, '""')}"`;
-
-    csv += `${l.id},"${l.createdAt}",${l.userId},${fullName},${username},${l.channelTag},${channelName},${param},${l.capiStatus},"${l.capiTraceId}"\n`;
+    const id = l._id || l.id || '';
+    csv += `${id},"${l.createdAt}",${l.userId},${fullName},${username},${l.channelTag},${channelName},${param},${l.capiStatus},"${l.capiTraceId}"\n`;
   }
 
   res.setHeader('Content-Type', 'text/csv');
@@ -238,16 +238,16 @@ app.get('/api/export', (req, res) => {
 // ----------------- LIVE CHAT INBOX API -----------------
 
 // 8. Get All Conversations (WhatsApp-style Contact List)
-app.get('/api/chat/conversations', (req, res) => {
-  const convs = db.getConversations();
+app.get('/api/chat/conversations', async (req, res) => {
+  const convs = await db.getConversations();
   res.json({ success: true, data: convs });
 });
 
 // 9. Get Messages for a specific User
-app.get('/api/chat/messages/:userId', (req, res) => {
+app.get('/api/chat/messages/:userId', async (req, res) => {
   const { userId } = req.params;
-  const messages = db.getMessagesByUser(userId, 200);
-  db.markMessagesRead(userId);
+  const messages = await db.getMessagesByUser(userId, 200);
+  await db.markMessagesRead(userId);
   res.json({ success: true, data: messages });
 });
 
@@ -268,9 +268,9 @@ app.post('/api/chat/send', async (req, res) => {
 });
 
 // 11. Mark messages as read
-app.post('/api/chat/read/:userId', (req, res) => {
+app.post('/api/chat/read/:userId', async (req, res) => {
   const { userId } = req.params;
-  db.markMessagesRead(userId);
+  await db.markMessagesRead(userId);
   res.json({ success: true });
 });
 

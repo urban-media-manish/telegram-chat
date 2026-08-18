@@ -660,6 +660,42 @@ let recordedAudioChunks = [];
 let voiceRecordInterval = null;
 let voiceRecordSeconds = 0;
 
+function compressImage(file, maxDimension = 1200, quality = 0.8) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve({ dataUrl, name: file.name.replace(/\.[^/.]+$/, '') + '.jpg', type: 'image' });
+      };
+      img.onerror = () => resolve({ dataUrl: e.target.result, name: file.name, type: 'image' });
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
 function initChatMediaControls() {
   const btnAttach = document.getElementById('btnAttachImage');
   const fileInput = document.getElementById('chatFileInput');
@@ -674,26 +710,22 @@ function initChatMediaControls() {
   const btnCancelVoice = document.getElementById('btnCancelVoice');
   const btnSendVoice = document.getElementById('btnSendVoice');
 
-  // 1. Image Attachment
+  // 1. Image Attachment with Instant WhatsApp-style Compression
   if (btnAttach && fileInput) {
     btnAttach.addEventListener('click', () => fileInput.click());
 
-    fileInput.addEventListener('change', (e) => {
+    fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = (loadEvt) => {
-        pendingAttachment = {
-          dataUrl: loadEvt.target.result,
-          name: file.name,
-          type: file.type.startsWith('image/') ? 'image' : 'file'
-        };
-        if (previewImg) previewImg.src = loadEvt.target.result;
-        if (previewName) previewName.textContent = file.name;
-        if (previewBox) previewBox.style.display = 'flex';
-      };
-      reader.readAsDataURL(file);
+      const compressed = await compressImage(file);
+      if (!compressed) return;
+
+      pendingAttachment = compressed;
+      if (previewImg) previewImg.src = compressed.dataUrl;
+      if (previewName) previewName.textContent = compressed.name;
+      if (previewBox) previewBox.style.display = 'flex';
+      document.getElementById('chatMessageInput')?.focus();
     });
   }
 

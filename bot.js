@@ -717,16 +717,31 @@ async function sendMessageToUser(targetKey, text = '', mediaUrl = '', mediaType 
         let imageSource = mediaUrl;
         if (mediaUrl.startsWith('/uploads/')) {
           const localPath = path.join(__dirname, 'public', mediaUrl);
-          if (fs.existsSync(localPath)) imageSource = localPath;
+          if (fs.existsSync(localPath)) {
+            imageSource = fs.createReadStream(localPath);
+          }
         }
         await candidate.bot.sendPhoto(userChatId, imageSource, { caption: text || undefined });
       } else if ((mediaType === 'voice' || mediaType === 'audio') && mediaUrl) {
         let audioSource = mediaUrl;
         if (mediaUrl.startsWith('/uploads/')) {
           const localPath = path.join(__dirname, 'public', mediaUrl);
-          if (fs.existsSync(localPath)) audioSource = localPath;
+          if (fs.existsSync(localPath)) {
+            audioSource = fs.createReadStream(localPath);
+          }
         }
-        await candidate.bot.sendVoice(userChatId, audioSource, { caption: text || undefined });
+        try {
+          await candidate.bot.sendVoice(userChatId, audioSource, { caption: text || undefined });
+        } catch (voiceErr) {
+          console.warn('⚠️ sendVoice fallback to sendAudio:', voiceErr.message);
+          if (mediaUrl.startsWith('/uploads/')) {
+            const localPath = path.join(__dirname, 'public', mediaUrl);
+            if (fs.existsSync(localPath)) {
+              audioSource = fs.createReadStream(localPath);
+            }
+          }
+          await candidate.bot.sendAudio(userChatId, audioSource, { title: 'Voice Note' });
+        }
       } else {
         await candidate.bot.sendMessage(userChatId, text);
       }

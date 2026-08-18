@@ -365,7 +365,11 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
       // Ensure user is recorded in leads if not already
       const existingLeads = db.getLeads(500);
       const channels = db.getChannels();
+      const userLead = existingLeads.find(l => String(l.userId) === String(user.id));
       let matchedChannel = specificChannel;
+      if (!matchedChannel && userLead && userLead.channelTag) {
+        matchedChannel = channels.find(c => c.tag.toLowerCase() === userLead.channelTag.toLowerCase());
+      }
       if (!matchedChannel && botToken) {
         const cleanTok = String(botToken).trim();
         const tokPrefix = cleanTok.split(':')[0];
@@ -373,8 +377,8 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
                          channels.find(c => c.botToken && c.botToken.startsWith(tokPrefix));
       }
 
-      const chTag = matchedChannel ? matchedChannel.tag : 'default';
-      const chName = matchedChannel ? matchedChannel.name : 'Direct Chat';
+      const chTag = matchedChannel ? matchedChannel.tag : (userLead ? userLead.channelTag : 'default');
+      const chName = matchedChannel ? matchedChannel.name : (userLead ? userLead.channelName : 'Direct Chat');
 
       const isLeadRecorded = existingLeads.some(l => String(l.userId) === String(user.id) && l.channelTag === chTag);
       if (!isLeadRecorded) {

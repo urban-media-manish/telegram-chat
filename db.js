@@ -476,12 +476,15 @@ const db = {
                   );
 
     const finalTag = found ? found.tag : (tag || 'default');
+    const cleanBotUser = (found && found.botUsername) ? found.botUsername.replace(/^@/, '').toLowerCase().trim() : '';
+    const botPrefix = (found && found.botToken) ? found.botToken.split(':')[0] : (tokenPrefix || finalTag);
+
     return {
       tag: finalTag,
       name: found ? found.name : (tag ? `Account (${tag})` : 'Direct Chat'),
       botUsername: found ? (found.botUsername || '') : '',
       botToken: found ? found.botToken : cleanToken,
-      botKey: finalTag
+      botKey: cleanBotUser || botPrefix || finalTag
     };
   },
 
@@ -516,7 +519,8 @@ const db = {
       if (EXCLUDE.has(uid)) continue;
       const displayName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || (lead.username ? `@${lead.username}` : `User ${lead.userId}`);
       const chInfo = this.getChannelInfo(lead.channelTag, '');
-      const convKey = `${uid}_${chInfo.tag}`;
+      const botKey = chInfo.botKey || chInfo.tag;
+      const convKey = `${uid}_${botKey}`;
 
       convMap.set(convKey, {
         convId: convKey,
@@ -540,7 +544,8 @@ const db = {
       const uid = String(msg.userId);
       if (EXCLUDE.has(uid)) continue;
       const chInfo = this.getChannelInfo(msg.channelTag, msg.botToken);
-      const convKey = `${uid}_${chInfo.tag}`;
+      const botKey = chInfo.botKey || chInfo.tag;
+      const convKey = `${uid}_${botKey}`;
 
       const existing = convMap.get(convKey) || {
         convId: convKey,
@@ -569,6 +574,10 @@ const db = {
         existing.botToken = msg.botToken;
       }
       if (msg.userChatId) existing.userChatId = msg.userChatId;
+      if (msg.channelTag && msg.channelTag !== 'default') {
+        existing.channelTag = msg.channelTag;
+        existing.channelName = chInfo.name;
+      }
       if (msg.sender === 'user' && !msg.read) existing.unreadCount = (existing.unreadCount || 0) + 1;
       convMap.set(convKey, existing);
     }

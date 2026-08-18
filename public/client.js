@@ -715,7 +715,7 @@ async function sendChatMessage() {
     });
 
     const json = await res.json();
-    if (btn) btn.disabled = false;
+    if (!json.success) {
       alert(`⚠️ Failed to deliver message: ${json.error || 'Unknown error'}`);
     } else {
       loadConversations(true);

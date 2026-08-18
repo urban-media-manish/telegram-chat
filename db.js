@@ -467,10 +467,11 @@ const db = {
     const channels = this.getChannels();
     const cleanToken = botToken ? String(botToken).trim() : '';
     const tokenPrefix = cleanToken ? cleanToken.split(':')[0] : '';
-    const found = channels.find(c =>
-      (cleanToken && c.botToken && c.botToken.trim() === cleanToken) ||
-      (tokenPrefix && c.botToken && c.botToken.startsWith(tokenPrefix))
-    ) || channels.find(c => tag && c.tag && c.tag.toLowerCase() === tag.toLowerCase());
+    const found = channels.find(c => tag && c.tag && c.tag.toLowerCase() === tag.toLowerCase()) ||
+                  channels.find(c =>
+                    (cleanToken && c.botToken && c.botToken.trim() === cleanToken) ||
+                    (tokenPrefix && c.botToken && c.botToken.startsWith(tokenPrefix))
+                  );
 
     const finalTag = found ? found.tag : (tag || 'default');
     return {

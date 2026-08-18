@@ -644,40 +644,37 @@ const db = {
       targetTag = parts[1];
     }
 
-    let allMsgs = [];
+    let allMessages = [];
     try {
       if (await connectDB()) {
-        const query = {
-          $or: [
-            { userId: String(uid) },
-            { userId: Number(uid) || String(uid) },
-            { userChatId: String(uid) },
-            { userChatId: Number(uid) || String(uid) }
-          ]
-        };
-        allMsgs = (await Message.find(query).sort({ createdAt: 1 })).map(m => m.toObject());
+        allMessages = (await Message.find({}).sort({ createdAt: 1 })).map(m => m.toObject());
       } else {
-        allMsgs = readJsonFile(MESSAGES_FILE, []).filter(m => String(m.userId) === String(uid) || String(m.userChatId) === String(uid));
+        allMessages = readJsonFile(MESSAGES_FILE, []);
       }
     } catch (e) {
-      allMsgs = readJsonFile(MESSAGES_FILE, []).filter(m => String(m.userId) === String(uid) || String(m.userChatId) === String(uid));
+      allMessages = readJsonFile(MESSAGES_FILE, []);
     }
 
-    if (targetTag) {
-      const filtered = allMsgs.filter(m => {
-        const chInfo = this.getChannelInfo(m.channelTag, m.botToken);
-        return chInfo.tag.toLowerCase() === targetTag.toLowerCase() ||
-               (m.channelTag && m.channelTag.toLowerCase() === targetTag.toLowerCase());
-      });
-      if (filtered.length > 0) return filtered.slice(-limit);
-      if (targetTag === 'meta_ad' || targetTag === 'default') {
-        const fallback = allMsgs.filter(m => !m.channelTag || m.channelTag === 'default' || m.channelTag === 'meta_ad');
-        if (fallback.length > 0) return fallback.slice(-limit);
-      }
-      return filtered.slice(-limit);
+    const userMsgs = allMessages.filter(m => String(m.userId) === String(uid) || String(m.userChatId) === String(uid));
+
+    if (!targetTag) {
+      return userMsgs.slice(-limit);
     }
 
-    return allMsgs.slice(-limit);
+    const filtered = userMsgs.filter(m => {
+      const chInfo = this.getChannelInfo(m.channelTag, m.botToken);
+      return chInfo.tag.toLowerCase() === targetTag.toLowerCase() ||
+             (m.channelTag && m.channelTag.toLowerCase() === targetTag.toLowerCase());
+    });
+
+    if (filtered.length > 0) return filtered.slice(-limit);
+
+    if (targetTag.toLowerCase() === 'meta_ad' || targetTag.toLowerCase() === 'default') {
+      const fallback = userMsgs.filter(m => !m.channelTag || m.channelTag === 'default' || m.channelTag === 'meta_ad');
+      if (fallback.length > 0) return fallback.slice(-limit);
+    }
+
+    return filtered.slice(-limit);
   },
 
   getStats() {

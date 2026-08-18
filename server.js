@@ -254,6 +254,7 @@ app.get('/api/chat/conversations', async (req, res) => {
 app.get('/api/chat/messages/:userId', async (req, res) => {
   const { userId } = req.params;
   const messages = await db.getMessagesByUser(userId, 200);
+  console.log(`📥 [API Messages] Req for "${userId}" -> Found ${messages.length} messages`);
   await db.markMessagesRead(userId);
   res.json({ success: true, data: messages });
 });

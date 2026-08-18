@@ -787,8 +787,8 @@ function initChatMediaControls() {
         if (mediaRecorder._shouldSend && recordedAudioChunks.length > 0) {
           const audioBlob = new Blob(recordedAudioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
           const reader = new FileReader();
-          reader.onload = async () => {
-            const dataUrl = reader.target.result;
+          reader.onload = async (e) => {
+            const dataUrl = e.target.result;
             await uploadAndSendMedia(dataUrl, 'voice', 'voice_note.webm');
           };
           reader.readAsDataURL(audioBlob);

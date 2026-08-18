@@ -1,5 +1,6 @@
 [
   {
+    "accessPin": "1234",
     "_id": "6a83b9951ba7d66be7c85f3b",
     "tag": "meta_ad",
     "__v": 0,
@@ -21,15 +22,17 @@
     "accessToken": "EAAaQv2w9ac0BSOxieaFegNLZCtvkrSCNJ9ABKbTvoiWMyJmXvv5zTNMZAZCIRAUUWQFuFb4twMZCfipshMAlHHroMHPM5u31In9qrtc7MFfPDblZCZCGPvMocqld5yzY4sOiXcywZAJBcy3bJzAxLBb75lD7v3JKLRWiCwTAV0JqKfrUFpZCTxZAB43MRGV8ndgZD",
     "botToken": "8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY",
     "botUsername": "southboookbot",
-    "buttonText": "💬 Direct Live Chat Active",
+    "buttonText": "Join South Boook",
     "createdAt": "2026-08-17T06:00:00.000Z",
     "link": "https://t.me/sparkspires",
-    "name": "Facebook Ad #1",
+    "name": "South Boook",
     "pixelId": "3572072086292080",
-    "updatedAt": "2026-08-18T01:47:01.921Z",
-    "welcomeMessage": "👋 **Welcome!**\n\n🔥 Thank you for reaching out from Facebook.\n\n💬 **We are online right now.** Type and send your message below, and our team will answer you directly here! 👇"
+    "updatedAt": "2026-08-18T07:12:09.039Z",
+    "welcomeMessage": "Welcome! Send a message here to chat directly:",
+    "accessPin": "south1234"
   },
   {
+    "accessPin": "1234",
     "_id": "6a83b9961ba7d66be7c85f3d",
     "tag": "insta1",
     "__v": 0,
@@ -45,6 +48,7 @@
     "welcomeMessage": "👋 **Welcome from Instagram!**\n\n🔥 We are ready to assist you right here.\n\n💬 **Type your question or message below**, and we will reply instantly! 👇"
   },
   {
+    "accessPin": "1234",
     "_id": "6a83b9961ba7d66be7c85f3e",
     "tag": "vip",
     "__v": 0,

@@ -442,6 +442,7 @@ function renderConversationsList(convs) {
 
 window.selectConversation = async function(convKey) {
   activeChatUserId = String(convKey);
+  lastRenderedMessagesKey = '';
   const conv = allConversations.find(c => String(c.convId || c.userId) === String(convKey));
 
   if (conv) {

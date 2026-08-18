@@ -246,10 +246,10 @@ function showSystemNotification(title, body, userId = null) {
   }
 }
 
-// Highlight active top nav button based on URL
+// Highlight active top nav and sidebar buttons based on URL
 function highlightCurrentNav() {
   const path = window.location.pathname;
-  const links = document.querySelectorAll('.nav-link-btn');
+  const links = document.querySelectorAll('.nav-link-btn, .sidebar-nav-item');
   links.forEach(link => {
     const href = link.getAttribute('href');
     if (href === path || (path === '/' && href === '/chat')) {
@@ -272,7 +272,7 @@ function initPwaInstaller() {
     e.preventDefault();
     deferredInstallPrompt = e;
     if (btnInstall) {
-      btnInstall.innerHTML = '⬇️ Install App';
+      btnInstall.innerHTML = '<span>⬇️</span> Install App';
       btnInstall.style.background = 'linear-gradient(135deg, var(--accent-cyan), var(--accent-primary))';
       btnInstall.style.color = '#ffffff';
       btnInstall.style.borderColor = 'transparent';
@@ -281,7 +281,7 @@ function initPwaInstaller() {
 
   window.addEventListener('appinstalled', () => {
     if (btnInstall) {
-      btnInstall.innerHTML = '✅ Installed';
+      btnInstall.innerHTML = '<span>✅</span> Installed';
       btnInstall.style.background = 'transparent';
       btnInstall.style.color = 'var(--accent-emerald)';
     }
@@ -295,7 +295,7 @@ function initPwaInstaller() {
         deferredInstallPrompt.prompt();
         const { outcome } = await deferredInstallPrompt.userChoice;
         if (outcome === 'accepted') {
-          btnInstall.innerHTML = '✅ Installed';
+          btnInstall.innerHTML = '<span>✅</span> Installed';
         }
         deferredInstallPrompt = null;
       } else {
@@ -314,16 +314,6 @@ function initPwaInstaller() {
 window.openPwaModal = function() {};
 window.closePwaModal = function() {
   document.getElementById('pwaGuideModal')?.classList.remove('active');
-};
-
-window.openPwaModal = function() {
-  const modal = document.getElementById('pwaGuideModal');
-  if (modal) modal.classList.add('active');
-};
-
-window.closePwaModal = function() {
-  const modal = document.getElementById('pwaGuideModal');
-  if (modal) modal.classList.remove('active');
 };
 
 // Event Listeners (Safe for all pages)
@@ -345,6 +335,25 @@ function initEventListeners() {
   });
 
   document.getElementById('btnTestLead')?.addEventListener('click', handleSendTestLead);
+
+  // Mobile Drawer Toggle
+  const hamburger = document.getElementById('btnHamburgerMenu');
+  const sidebar = document.getElementById('appSidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+
+  if (hamburger && sidebar) {
+    hamburger.addEventListener('click', () => {
+      sidebar.classList.toggle('drawer-open');
+      backdrop?.classList.toggle('active');
+    });
+  }
+
+  if (backdrop && sidebar) {
+    backdrop.addEventListener('click', () => {
+      sidebar.classList.remove('drawer-open');
+      backdrop.classList.remove('active');
+    });
+  }
 }
 
 // Channel Modal Listeners

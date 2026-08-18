@@ -17,54 +17,118 @@
 </head>
 <body>
 
-  <!-- Top Navigation Bar -->
-  <header class="navbar">
-    <div class="nav-brand">
-      <div class="brand-logo">
-        <span class="logo-icon">⚡</span>
-      </div>
-      <div>
-        <h1 class="brand-title">TeleTrack CAPI</h1>
-        <p class="brand-subtitle">WhatsApp-Style Bot Chat & Meta Sync</p>
-      </div>
-    </div>
+  <!-- App Layout with Professional Left Sidebar -->
+  <div class="app-layout">
 
-    <!-- Page Nav Links -->
-    <nav class="main-nav-links">
-      <a href="/chat" class="nav-link-btn">💬 Live Chat</a>
-      <a href="/leads" class="nav-link-btn">📋 Leads History</a>
-      <a href="/channels" class="nav-link-btn">👤 Accounts & Channels</a>
-      <a href="/links" class="nav-link-btn active">🎯 Meta Ad Links</a>
-    </nav>
+    <div class="sidebar-backdrop-overlay" id="sidebarBackdrop"></div>
 
-    <div class="nav-actions">
-      <div class="live-indicator">
-        <span class="pulse-dot"></span> Live Sync Active
-      </div>
-      <button class="btn btn-outline btn-sm" id="btnToggleNotification">
-        🔔 Enable Notifications
-      </button>
-      <button class="btn btn-outline btn-pwa btn-sm" id="btnInstallApp">
-        📲 Add to Home Screen
-      </button>
-    </div>
-  </header>
-
-  <!-- Main Container -->
-  <main class="dashboard-container">
-    
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title">Meta Ads Destination URLs</h2>
-        <p class="card-desc">Copy these ready-to-use links and paste into your Facebook & Instagram Ads Manager (Website URL / Destination field).</p>
+    <!-- Left Sidebar -->
+    <aside class="app-sidebar" id="appSidebar">
+      
+      <!-- Top Brand -->
+      <div class="sidebar-brand">
+        <div class="brand-logo">
+          <span class="logo-icon">⚡</span>
+        </div>
+        <div class="brand-info">
+          <h1 class="brand-title">TeleTrack</h1>
+          <span class="brand-badge-pill">CAPI SYNC</span>
+        </div>
       </div>
 
-      <div class="links-generator-list" id="adLinksList">
-        <!-- Populated by JS -->
+      <!-- Live Sync Status -->
+      <div class="sidebar-status-box">
+        <span class="pulse-dot"></span>
+        <span>Live Sync Active</span>
       </div>
-    </div>
 
-  </main>
+      <!-- Navigation Section -->
+      <div class="sidebar-section-title">NAVIGATION</div>
+      <nav class="sidebar-nav">
+        <a href="/chat" class="sidebar-nav-item">
+          <span class="nav-icon">💬</span>
+          <span class="nav-label">Live Chat</span>
+        </a>
+        <a href="/leads" class="sidebar-nav-item">
+          <span class="nav-icon">📋</span>
+          <span class="nav-label">Leads History</span>
+        </a>
+        <a href="/channels" class="sidebar-nav-item">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">Accounts & Channels</span>
+        </a>
+        <a href="/links" class="sidebar-nav-item active">
+          <span class="nav-icon">🎯</span>
+          <span class="nav-label">Meta Ad Links</span>
+        </a>
+      </nav>
+
+      <!-- Quick Actions -->
+      <div class="sidebar-section-title">QUICK ACTIONS</div>
+      <div class="sidebar-actions">
+        <button class="btn-sidebar-action btn-send-test" id="btnTestLead">
+          <span>🚀</span> Send Test Lead
+        </button>
+        <button class="btn-sidebar-action" id="btnRefresh">
+          <span>🔄</span> Refresh Data
+        </button>
+        <button class="btn-sidebar-action" id="btnToggleNotification">
+          <span>🔔</span> Notifications
+        </button>
+        <button class="btn-sidebar-action" id="btnInstallApp">
+          <span>📲</span> Add to Home
+        </button>
+      </div>
+
+      <!-- Sidebar Bottom Admin Profile -->
+      <div class="sidebar-footer">
+        <div class="admin-profile-pill">
+          <div class="admin-avatar">🛡️</div>
+          <div class="admin-info">
+            <div class="admin-name">Master Admin</div>
+            <div class="admin-status">● Online</div>
+          </div>
+        </div>
+        <button class="btn-lock-sidebar" id="btnLockApp" title="Lock Panel" onclick="lockAdminSession()">
+          🔒
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="app-main-content">
+      
+      <!-- Mobile Top Bar with Hamburger -->
+      <header class="mobile-app-header">
+        <button class="btn-hamburger" id="btnHamburgerMenu" title="Open Menu">
+          ☰
+        </button>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.2rem;">🎯</span>
+          <span style="font-weight: 800; font-size: 1.05rem; color: #fff;">Ad Links</span>
+        </div>
+        <button class="btn-lock-sidebar" onclick="lockAdminSession()" title="Lock" style="width: 32px; height: 32px;">
+          🔒
+        </button>
+      </header>
+
+      <!-- Main Dashboard Content -->
+      <main class="dashboard-container">
+        
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Meta Ads Destination URLs</h2>
+            <p class="card-desc">Copy these ready-to-use links and paste into your Facebook & Instagram Ads Manager (Website URL / Destination field).</p>
+          </div>
+
+          <div class="links-generator-list" id="adLinksList">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+      </main>
+    </div> <!-- /.app-main-content -->
+  </div> <!-- /.app-layout -->
 
   <script src="app.js"></script>
 </body>

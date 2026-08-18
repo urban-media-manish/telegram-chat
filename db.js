@@ -475,7 +475,11 @@ const db = {
   async getConversations() {
     const admin = this.getAdminConfig();
     const adminId = admin.adminChatId ? String(admin.adminChatId) : null;
-    const EXCLUDE = new Set(['5212375937', '-1004309264544', adminId].filter(Boolean));
+    // Only exclude negative Group/Forum IDs, do not exclude normal user chat IDs
+    const EXCLUDE = new Set(['-1004309264544']);
+    if (adminId && String(adminId).startsWith('-')) {
+      EXCLUDE.add(String(adminId));
+    }
 
     let leads = [], messages = [];
     try {

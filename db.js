@@ -146,8 +146,9 @@ function writeJsonFile(filePath, data) {
   }
 }
 
-// ─── In-Memory Reply Map ──────────────────────────────────────────────────────
+// ─── In-Memory Reply Map & Caches ─────────────────────────────────────────────
 const replyMap = new Map();
+let cachedChannels = null;
 
 // ─── DB Object ───────────────────────────────────────────────────────────────
 const db = {

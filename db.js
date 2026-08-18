@@ -227,15 +227,14 @@ const db = {
   },
 
   getChannels() {
+    if (cachedChannels && cachedChannels.length > 0) return cachedChannels;
     const jsonChannels = readJsonFile(CHANNELS_FILE, []);
+    cachedChannels = jsonChannels;
     if (isConnected) {
       Channel.find({}).then(dbChannels => {
         if (dbChannels.length > 0) {
-          writeJsonFile(CHANNELS_FILE, dbChannels.map(c => c.toObject()));
-        } else if (jsonChannels.length > 0) {
-          Promise.all(jsonChannels.map(ch =>
-            Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, returnDocument: 'after' })
-          )).catch(() => {});
+          cachedChannels = dbChannels.map(c => c.toObject());
+          writeJsonFile(CHANNELS_FILE, cachedChannels);
         }
       }).catch(() => {});
     }
@@ -243,11 +242,12 @@ const db = {
   },
 
   async getChannelsAsync() {
+    if (cachedChannels && cachedChannels.length > 0) return cachedChannels;
+    const jsonChannels = readJsonFile(CHANNELS_FILE, []);
     try {
       if (await connectDB()) {
         let dbChannels = await Channel.find({});
         if (dbChannels.length === 0) {
-          const jsonChannels = readJsonFile(CHANNELS_FILE, []);
           if (jsonChannels.length > 0) {
             for (const ch of jsonChannels) {
               await Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, returnDocument: 'after' });
@@ -272,6 +272,7 @@ const db = {
   },
 
   async saveChannel(channelData) {
+    cachedChannels = null;
     const cleanTag = channelData.tag.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
     const record = {
       tag: cleanTag,
@@ -291,7 +292,9 @@ const db = {
       if (await connectDB()) {
         const ch = await Channel.findOneAndUpdate({ tag: cleanTag }, record, { upsert: true, returnDocument: 'after' });
         const all = await Channel.find({});
-        writeJsonFile(CHANNELS_FILE, all.map(c => c.toObject()));
+        const allList = all.map(c => c.toObject());
+        cachedChannels = allList;
+        writeJsonFile(CHANNELS_FILE, allList);
         return ch.toObject();
       }
     } catch (e) {
@@ -302,27 +305,34 @@ const db = {
     const idx = channels.findIndex(c => c.tag.toLowerCase() === cleanTag);
     if (idx >= 0) {
       channels[idx] = { ...channels[idx], ...record };
+      cachedChannels = channels;
       writeJsonFile(CHANNELS_FILE, channels);
       return channels[idx];
     }
     record.createdAt = new Date().toISOString();
     channels.push(record);
+    cachedChannels = channels;
     writeJsonFile(CHANNELS_FILE, channels);
     return record;
   },
 
   async deleteChannel(tag) {
+    cachedChannels = null;
     try {
       if (await connectDB()) {
         await Channel.deleteOne({ tag: tag.trim().toLowerCase() });
         const all = await Channel.find({});
-        writeJsonFile(CHANNELS_FILE, all.map(c => c.toObject()));
+        const allList = all.map(c => c.toObject());
+        cachedChannels = allList;
+        writeJsonFile(CHANNELS_FILE, allList);
         return true;
       }
     } catch (e) {}
 
     const channels = readJsonFile(CHANNELS_FILE, []);
-    writeJsonFile(CHANNELS_FILE, channels.filter(c => c.tag.toLowerCase() !== tag.trim().toLowerCase()));
+    const remaining = channels.filter(c => c.tag.toLowerCase() !== tag.trim().toLowerCase());
+    cachedChannels = remaining;
+    writeJsonFile(CHANNELS_FILE, remaining);
     return true;
   },
 

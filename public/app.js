@@ -19,14 +19,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const isAuth = checkAdminAuth();
   if (isAuth) {
-    // Load appropriate data safely
-    loadAppConfig();
+    initPageData();
+  }
+});
+
+function initPageData() {
+  const path = window.location.pathname;
+  loadAppConfig();
+
+  if (path === '/channels') {
+    loadChannels();
+  } else if (path === '/links') {
+    loadChannels();
+  } else if (path === '/leads') {
     loadStats();
     loadChannels();
     loadLeads();
+  } else {
+    // /chat or default index
+    loadChannels();
     loadConversations();
+    loadStats();
   }
-});
+}
 
 // Real-Time Server-Sent Events (SSE) Socket Stream (0ms Instant Sync)
 function initSSE() {
@@ -46,7 +61,7 @@ function initSSE() {
           if (openUserId && openUserId === incomingUserId) {
             appendMessageBubbleDirectly(msg);
             loadActiveChatMessages(activeChatUserId, true);
-          } else if (!activeChatUserId && window.innerWidth > 768) {
+          } else if (!activeChatUserId && window.innerWidth > 768 && document.getElementById('chatMessagesContainer')) {
             selectConversation(`${msg.userId}_${msg.channelTag || 'default'}`);
           }
 
@@ -56,12 +71,14 @@ function initSSE() {
             showSystemNotification(`New Message from ${msg.userName || 'Customer'}`, msg.text || '[Media]', msg.userId);
           }
 
-          // Refresh conversation sidebar badge & last message instantly
-          loadConversations(true);
+          // Refresh conversation sidebar badge & last message instantly if on chat page
+          if (document.getElementById('conversationList')) {
+            loadConversations(true);
+          }
         } else if (payload.type === 'new_lead') {
-          loadStats();
-          loadLeads();
-          loadConversations(true);
+          if (document.getElementById('kpiTodayLeads')) loadStats();
+          if (document.getElementById('leadsTableBody')) loadLeads();
+          if (document.getElementById('conversationList')) loadConversations(true);
         }
       } catch (err) {}
     };
@@ -73,9 +90,9 @@ function initSSE() {
     console.warn('SSE connection notice:', err);
   }
 
-  // Active chat real-time sync heartbeat (1.5s interval)
+  // Active chat real-time sync heartbeat (1.5s interval) - ONLY on active chat page
   setInterval(() => {
-    if (localStorage.getItem('teletrack_admin_auth')) {
+    if (localStorage.getItem('teletrack_admin_auth') && document.getElementById('chatMessagesContainer')) {
       if (activeChatUserId) {
         loadActiveChatMessages(activeChatUserId, true);
       }
@@ -798,6 +815,25 @@ function renderLeadsTable(leads) {
 }
 
 async function loadChannels() {
+  const channelsCont = document.getElementById('channelsListContainer');
+  const linksCont = document.getElementById('adLinksList');
+  if (channelsCont && (!allChannels || allChannels.length === 0)) {
+    channelsCont.innerHTML = `
+      <div class="empty-state py-8 text-center" style="grid-column: 1/-1;">
+        <div class="loading-spinner" style="width:28px; height:28px; margin:0 auto;"></div>
+        <p class="text-muted mt-2">Loading accounts & channels...</p>
+      </div>
+    `;
+  }
+  if (linksCont && (!allChannels || allChannels.length === 0)) {
+    linksCont.innerHTML = `
+      <div class="empty-state py-8 text-center">
+        <div class="loading-spinner" style="width:28px; height:28px; margin:0 auto;"></div>
+        <p class="text-muted mt-2">Loading destination URLs...</p>
+      </div>
+    `;
+  }
+
   try {
     const res = await fetch('/api/channels');
     const json = await res.json();

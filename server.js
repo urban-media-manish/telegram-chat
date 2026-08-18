@@ -45,6 +45,15 @@ app.get('/links', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'links.html'));
 });
 
+// Client Dedicated Chat Pages (No Admin Navbar)
+app.get('/client/:channelTag', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'client.html'));
+});
+
+app.get('/client', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'client.html'));
+});
+
 // Real-Time SSE Event Stream for 0ms Instant Chat Sync
 const sseClients = new Set();
 
@@ -244,10 +253,64 @@ app.get('/api/export', async (req, res) => {
 
 // ----------------- LIVE CHAT INBOX API -----------------
 
-// 8. Get All Conversations (WhatsApp-style Contact List)
+// 8. Get Conversations (with optional channel filter for dedicated client links)
 app.get('/api/chat/conversations', async (req, res) => {
-  const convs = await db.getConversations();
+  const channel = req.query.channel;
+  let convs = await db.getConversations();
+
+  if (channel && channel !== 'all') {
+    const searchTag = channel.toLowerCase().trim();
+    const allChans = await db.getChannelsAsync();
+    const matchedChans = allChans.filter(c => 
+      (c.tag && c.tag.toLowerCase() === searchTag) ||
+      (c.botUsername && c.botUsername.toLowerCase() === searchTag) ||
+      (c.name && c.name.toLowerCase().includes(searchTag))
+    );
+    const validTags = new Set([searchTag, ...matchedChans.map(c => (c.tag || '').toLowerCase())]);
+    const validBots = new Set(matchedChans.map(c => (c.botUsername || '').toLowerCase().replace(/^@/, '')).filter(Boolean));
+
+    convs = convs.filter(c => {
+      const cTag = (c.channelTag || '').toLowerCase();
+      const cBot = (c.botUsername || '').toLowerCase().replace(/^@/, '');
+      return validTags.has(cTag) || (cBot && validBots.has(cBot));
+    });
+  }
+
   res.json({ success: true, data: convs });
+});
+
+// 8b. Get Public Safe Client Channel Info (No secrets/tokens exposed)
+app.get('/api/client/info/:channelTag', async (req, res) => {
+  const { channelTag } = req.params;
+  const searchTag = (channelTag || '').toLowerCase().trim();
+  const channels = await db.getChannelsAsync();
+  const channel = channels.find(c => 
+    (c.tag && c.tag.toLowerCase() === searchTag) ||
+    (c.botUsername && c.botUsername.toLowerCase().replace(/^@/, '') === searchTag)
+  ) || channels.find(c => c.name && c.name.toLowerCase().includes(searchTag));
+
+  if (channel) {
+    res.json({
+      success: true,
+      data: {
+        tag: channel.tag,
+        name: channel.name,
+        botUsername: channel.botUsername,
+        buttonText: channel.buttonText,
+        welcomeMessage: channel.welcomeMessage
+      }
+    });
+  } else {
+    res.json({
+      success: true,
+      data: {
+        tag: channelTag,
+        name: `Account (${channelTag})`,
+        botUsername: '',
+        welcomeMessage: ''
+      }
+    });
+  }
 });
 
 // 9. Get Messages for a specific User

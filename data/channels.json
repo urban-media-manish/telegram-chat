@@ -48,15 +48,15 @@
     "_id": "6a83b9961ba7d66be7c85f3e",
     "tag": "vip",
     "__v": 0,
-    "accessToken": "EAAaQv2w9ac0BSOxieaFegNLZCtvkrSCNJ9ABKbTvoiWMyJmXvv5zTNMZAZCIRAUUWQFuFb4twMZCfipshMAlHHroMHPM5u31In9qrtc7MFfPDblZCZCGPvMocqld5yzY4sOiXcywZAJBcy3bJzAxLBb75lD7v3JKLRWiCwTAV0JqKfrUFpZCTxZAB43MRGV8ndgZD",
+    "accessToken": "",
     "botToken": "8827730708:AAGVUx0Xr9IhZnMSMho2uwTfCP_cSVtjUZk",
     "botUsername": "manish_lead_bot",
-    "buttonText": "💬 VIP Live Support",
+    "buttonText": "Join VIP Direct Support Chat",
     "createdAt": "2026-08-17T06:00:00.000Z",
     "link": "https://t.me/manish_lead_bot",
     "name": "VIP Direct Support Chat",
-    "pixelId": "3572072086292080",
-    "updatedAt": "2026-08-18T02:10:59.622Z",
-    "welcomeMessage": "⭐ **Welcome to VIP Priority Support!**\n\n🎯 Our expert team is live right now.\n\n💬 **Send your message directly in this chat:** 👇"
+    "pixelId": "",
+    "updatedAt": "2026-08-18T02:27:51.118Z",
+    "welcomeMessage": "Welcome! Send a message here to chat directly:"
   }
 ]

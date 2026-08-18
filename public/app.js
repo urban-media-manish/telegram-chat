@@ -815,6 +815,16 @@ function renderChannels(channels) {
             <span class="info-label">Welcome Msg:</span>
             <span class="info-value text-truncate">${escapeHtml(ch.welcomeMessage || 'Default')}</span>
           </div>
+          
+          <!-- Client Chat Portal Link -->
+          <div class="channel-client-link-box" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); display: flex; gap: 0.5rem; justify-content: space-between; align-items: center;">
+            <button class="btn btn-outline btn-sm" onclick="copyClientChatLink('${escapeHtml(ch.tag)}')" style="font-size: 0.8rem; flex: 1;" title="Copy private link for client">
+              🔗 Copy Client Chat Link
+            </button>
+            <a href="/client/${escapeHtml(ch.tag)}" target="_blank" class="btn btn-outline btn-sm" style="font-size: 0.8rem;" title="Preview isolated chat view">
+              👁️ Open View
+            </a>
+          </div>
         </div>
       </div>
     `;
@@ -822,6 +832,19 @@ function renderChannels(channels) {
 
   container.innerHTML = html;
 }
+
+window.copyClientChatLink = function(tag) {
+  const clientUrl = `${window.location.origin}/client/${encodeURIComponent(tag)}`;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(clientUrl).then(() => {
+      alert(`✅ Client Chat Link Copied to Clipboard!\n\n🔗 ${clientUrl}\n\n👉 Send this link to your client (${tag}). They will only see chats for this channel without any admin panel access!`);
+    }).catch(() => {
+      prompt('Copy Client Chat Link:', clientUrl);
+    });
+  } else {
+    prompt('Copy Client Chat Link:', clientUrl);
+  }
+};
 
 function renderChannelFilter(channels) {
   const filter = document.getElementById('channelFilter');

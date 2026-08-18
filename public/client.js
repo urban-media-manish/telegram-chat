@@ -696,6 +696,9 @@ async function sendChatMessage() {
     sender: 'admin',
     userName: 'You',
     text: text,
+    type: attachedMediaType,
+    mediaUrl: attachedMediaUrl,
+    mediaType: attachedMediaType,
     createdAt: new Date().toISOString()
   });
 
@@ -703,11 +706,16 @@ async function sendChatMessage() {
     const res = await fetch('/api/chat/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: activeChatUserId, text })
+      body: JSON.stringify({
+        userId: activeChatUserId,
+        text: text,
+        mediaUrl: attachedMediaUrl,
+        mediaType: attachedMediaType
+      })
     });
 
     const json = await res.json();
-    if (!json.success) {
+    if (btn) btn.disabled = false;
       alert(`⚠️ Failed to deliver message: ${json.error || 'Unknown error'}`);
     } else {
       loadConversations(true);

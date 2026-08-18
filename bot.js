@@ -453,9 +453,19 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
   bot.on('polling_error', (error) => {
     if (error.code === 'ETELEGRAM' && error.message.includes('401 Unauthorized')) {
       console.error('\n❌ Telegram Polling Error: Invalid Bot Token.\n');
+    } else if (error.code === 'ETELEGRAM' && error.message.includes('409 Conflict')) {
+      // 409 conflict happens when another instance or redeploy is starting - ignore silently
     } else {
       console.error('⚠️ Telegram Polling Error:', error.message);
     }
+  });
+
+  bot.on('error', (error) => {
+    console.error('⚠️ Telegram Bot General Error:', error.message || error);
+  });
+
+  bot.on('webhook_error', (error) => {
+    console.error('⚠️ Telegram Webhook Error:', error.message || error);
   });
 }
 

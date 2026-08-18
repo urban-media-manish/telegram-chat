@@ -12,6 +12,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+process.on('uncaughtException', (err) => {
+  console.error('⚠️ Uncaught Exception caught safely:', err.message || err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️ Unhandled Rejection caught safely:', reason);
+});
+
 // Health Check for Render
 app.get('/healthz', (req, res) => {
   res.status(200).send('OK');
@@ -196,7 +203,7 @@ app.post('/api/test-lead', async (req, res) => {
     channelName: channel ? channel.name : 'Test Lead Simulation'
   });
 
-  const lead = db.addLead({
+  const lead = await db.addLead({
     userId: fakeUserId,
     firstName: 'Test',
     lastName: 'Lead',

@@ -544,7 +544,23 @@ function registerChannelBot(channel) {
   }
 }
 
-async function sendMessageToUser(userId, text) {
+async function sendMessageToUser(targetKey, text) {
+  let userId = String(targetKey);
+  let forcedBotToken = '';
+
+  if (userId.includes('_')) {
+    const parts = userId.split('_');
+    userId = parts[0];
+    const botPrefixOrTag = parts[1];
+
+    for (const [tok, botInst] of activeBots.entries()) {
+      if (tok.startsWith(botPrefixOrTag)) {
+        forcedBotToken = tok;
+        break;
+      }
+    }
+  }
+
   const MASTER_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY').trim();
 
   // Ensure at least master bot is active
@@ -554,18 +570,16 @@ async function sendMessageToUser(userId, text) {
 
   const leads = db.getLeads(500);
   const lead = leads.find(l => String(l.userId) === String(userId));
-  
-  // Prefer the actual numeric user Telegram ID
+
+  // Prefer numeric positive user Telegram ID
   let userChatId = lead?.userId || userId;
-  
-  // If numeric ID is valid, ensure it is positive for direct user DM
   if (String(userChatId).startsWith('-')) {
     userChatId = userId;
   }
 
-  const messages = await db.getMessagesByUser(userId, 50);
+  const messages = await db.getMessagesByUser(targetKey, 50);
   const lastMsg = messages.slice().reverse().find(m => m.botToken);
-  const botToken = lastMsg?.botToken || '';
+  const botToken = forcedBotToken || lastMsg?.botToken || '';
 
   let targetBot = (botToken ? activeBots.get(botToken) : null) || activeBots.get(MASTER_TOKEN) || activeBots.values().next().value;
   if (!targetBot) {
@@ -579,7 +593,7 @@ async function sendMessageToUser(userId, text) {
 
   try {
     await targetBot.sendMessage(userChatId, text);
-    console.log(`📤 [Live Chat Delivered] Sent message to User ${userChatId}: "${text}"`);
+    console.log(`📤 [Live Chat Delivered] Sent message to User ${userChatId} via Bot [${(botToken || MASTER_TOKEN).slice(0, 10)}...]: "${text}"`);
   } catch (tgErr) {
     console.error(`❌ Telegram send error to ${userChatId}:`, tgErr.message);
     throw new Error(`Telegram Delivery: ${tgErr.message}`);

@@ -34,15 +34,15 @@ function initSSE() {
     es.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
-        if (payload.type === 'new_message') {
           const msg = payload.message;
-          const targetId = String(payload.userId || msg.userId);
+          const botPrefix = (msg.botToken || '').split(':')[0];
+          const msgConvKey = `${msg.userId}_${botPrefix || msg.channelTag || 'default'}`;
 
           // If message is in active open chat room, render instantly (0ms)
-          if (activeChatUserId && String(activeChatUserId) === targetId) {
+          if (activeChatUserId && (String(activeChatUserId) === msgConvKey || String(activeChatUserId) === String(msg.userId))) {
             appendMessageBubbleDirectly(msg);
           } else if (!activeChatUserId && window.innerWidth > 768) {
-            selectConversation(targetId);
+            selectConversation(msgConvKey);
           }
 
           // Sound & OS Notification for customer messages
@@ -360,7 +360,7 @@ async function loadConversations(isSilent = false) {
 
       // Auto-select first conversation on desktop if none selected
       if (container && !activeChatUserId && allConversations.length > 0 && window.innerWidth > 768 && !isSilent) {
-        selectConversation(allConversations[0].userId);
+        selectConversation(allConversations[0].convId || allConversations[0].userId);
       }
     }
   } catch (err) {
@@ -380,11 +380,12 @@ function renderConversationsList(convs) {
       (c.userName && c.userName.toLowerCase().includes(query)) ||
       (c.userUsername && c.userUsername.toLowerCase().includes(query)) ||
       String(c.userId).includes(query) ||
+      (c.channelName && c.channelName.toLowerCase().includes(query)) ||
       (c.lastMessage && c.lastMessage.toLowerCase().includes(query))
     );
   }
 
-  const currentKey = filtered.map(c => c.userId + (c.lastMessageTime || '') + (c.unreadCount || 0) + (String(c.userId) === String(activeChatUserId) ? '_a' : '')).join('|');
+  const currentKey = filtered.map(c => (c.convId || c.userId) + (c.lastMessageTime || '') + (c.unreadCount || 0) + (String(c.convId || c.userId) === String(activeChatUserId) ? '_a' : '')).join('|');
   if (currentKey && currentKey === lastRenderedConvsKey && container.children.length > 0) {
     return; // Exact same conversation list, skip re-render to prevent blinking
   }
@@ -401,15 +402,16 @@ function renderConversationsList(convs) {
 
   let html = '';
   for (const c of filtered) {
-    const isActive = activeChatUserId && String(activeChatUserId) === String(c.userId);
+    const key = c.convId || c.userId;
+    const isActive = activeChatUserId && String(activeChatUserId) === String(key);
     const initial = (c.userName ? c.userName.charAt(0) : 'U').toUpperCase();
     const timeFormatted = formatChatTime(c.lastMessageTime);
     const unread = isActive ? 0 : (c.unreadCount || 0);
     const isUnreadClass = unread > 0 ? 'unread' : '';
-    const botName = c.channelName || c.channelTag || 'Main Bot';
+    const botName = c.channelName || (c.botUsername ? `@${c.botUsername}` : c.channelTag) || 'Bot';
 
     html += `
-      <div class="chat-contact-item ${isActive ? 'active' : ''}" onclick="selectConversation('${c.userId}')">
+      <div class="chat-contact-item ${isActive ? 'active' : ''}" onclick="selectConversation('${key}')">
         <div class="contact-avatar">${escapeHtml(initial)}</div>
         <div class="contact-info">
           <div class="contact-top">
@@ -431,16 +433,16 @@ function renderConversationsList(convs) {
   container.innerHTML = html;
 }
 
-window.selectConversation = async function(userId) {
-  activeChatUserId = String(userId);
-  const conv = allConversations.find(c => String(c.userId) === String(userId));
+window.selectConversation = async function(convKey) {
+  activeChatUserId = String(convKey);
+  const conv = allConversations.find(c => String(c.convId || c.userId) === String(convKey));
 
   if (conv) {
     conv.unreadCount = 0;
   }
 
   // Mark read in DB in background
-  fetch(`/api/chat/read/${userId}`, { method: 'POST' }).catch(() => {});
+  fetch(`/api/chat/read/${convKey}`, { method: 'POST' }).catch(() => {});
 
   const emptyState = document.getElementById('chatEmptyState');
   if (emptyState) emptyState.style.display = 'none';
@@ -461,7 +463,7 @@ window.selectConversation = async function(userId) {
     if (handleEl) handleEl.textContent = conv.userUsername ? `@${conv.userUsername}` : 'No username';
 
     const tagEl = document.getElementById('activeUserTag');
-    if (tagEl) tagEl.textContent = `🤖 ${conv.channelName || conv.channelTag || 'Main Bot'}`;
+    if (tagEl) tagEl.textContent = `🤖 ${conv.channelName || (conv.botUsername ? `@${conv.botUsername}` : conv.channelTag)}`;
 
     const idEl = document.getElementById('activeUserId');
     if (idEl) idEl.textContent = `ID: ${conv.userId}`;
@@ -478,7 +480,7 @@ window.selectConversation = async function(userId) {
   }
 
   renderConversationsList(allConversations);
-  await loadActiveChatMessages(userId);
+  await loadActiveChatMessages(convKey);
 
   document.getElementById('chatMessageInput')?.focus();
 };

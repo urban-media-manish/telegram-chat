@@ -495,52 +495,72 @@ const db = {
       messages = readJsonFile(MESSAGES_FILE, []);
     }
 
-    const userMap = new Map();
+    const convMap = new Map();
     const channels = this.getChannels();
+
     const getChannelInfo = (tag, botToken) => {
-      const found = channels.find(c => (tag && c.tag === tag) || (botToken && c.botToken && c.botToken.trim() === String(botToken).trim()));
+      const cleanToken = botToken ? String(botToken).trim() : '';
+      const tokenPrefix = cleanToken ? cleanToken.split(':')[0] : '';
+      const found = channels.find(c =>
+        (cleanToken && c.botToken && c.botToken.trim() === cleanToken) ||
+        (tokenPrefix && c.botToken && c.botToken.startsWith(tokenPrefix))
+      ) || channels.find(c => tag && c.tag && c.tag.toLowerCase() === tag.toLowerCase());
+
       return {
         tag: found ? found.tag : (tag || 'default'),
-        name: found ? found.name : (tag ? `Account (${tag})` : 'Direct Chat')
+        name: found ? found.name : (tag ? `Account (${tag})` : 'Direct Chat'),
+        botUsername: found ? (found.botUsername || '') : '',
+        botToken: found ? found.botToken : cleanToken,
+        botKey: tokenPrefix || (found ? found.tag : (tag || 'default'))
       };
     };
 
+    // 1. Process Leads
     for (const lead of leads) {
       const uid = String(lead.userId);
       if (EXCLUDE.has(uid)) continue;
       const displayName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || (lead.username ? `@${lead.username}` : `User ${lead.userId}`);
       const chInfo = getChannelInfo(lead.channelTag, '');
-      userMap.set(uid, {
+      const convKey = `${uid}_${chInfo.botKey}`;
+
+      convMap.set(convKey, {
+        convId: convKey,
         userId: lead.userId,
         userChatId: lead.userId,
         userName: displayName,
         userUsername: lead.username || '',
         channelTag: chInfo.tag,
         channelName: chInfo.name,
+        botUsername: chInfo.botUsername,
+        botToken: chInfo.botToken,
         lastMessage: 'Started bot',
         lastMessageSender: 'system',
         lastMessageTime: lead.createdAt,
-        unreadCount: 0,
-        botToken: ''
+        unreadCount: 0
       });
     }
 
+    // 2. Process Messages
     for (const msg of messages) {
       const uid = String(msg.userId);
       if (EXCLUDE.has(uid)) continue;
       const chInfo = getChannelInfo(msg.channelTag, msg.botToken);
-      const existing = userMap.get(uid) || {
+      const convKey = `${uid}_${chInfo.botKey}`;
+
+      const existing = convMap.get(convKey) || {
+        convId: convKey,
         userId: msg.userId,
         userChatId: msg.userChatId || msg.userId,
         userName: msg.userName || (msg.userUsername ? `@${msg.userUsername}` : `User ${msg.userId}`),
         userUsername: msg.userUsername || '',
         channelTag: chInfo.tag,
         channelName: chInfo.name,
+        botUsername: chInfo.botUsername,
+        botToken: msg.botToken || chInfo.botToken || '',
         lastMessage: '',
         lastMessageSender: '',
         lastMessageTime: msg.createdAt,
-        unreadCount: 0,
-        botToken: msg.botToken || ''
+        unreadCount: 0
       };
 
       existing.lastMessage = msg.text || '[Media]';
@@ -552,36 +572,98 @@ const db = {
       }
       if (msg.botToken) {
         existing.botToken = msg.botToken;
-        existing.channelTag = chInfo.tag;
-        existing.channelName = chInfo.name;
       }
       if (msg.userChatId) existing.userChatId = msg.userChatId;
       if (msg.sender === 'user' && !msg.read) existing.unreadCount = (existing.unreadCount || 0) + 1;
-      userMap.set(uid, existing);
+      convMap.set(convKey, existing);
     }
 
-    return Array.from(userMap.values())
+    return Array.from(convMap.values())
       .filter(c => c.userName !== 'Admin' && c.userName !== 'Admin (Web Panel)')
       .sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
   },
 
-  async markMessagesRead(userId) {
+  async markMessagesRead(convIdOrUserId) {
+    const key = String(convIdOrUserId);
+    let filter = { sender: 'user', read: false };
+
+    if (key.includes('_')) {
+      const parts = key.split('_');
+      filter.userId = parts[0];
+      filter.$or = [
+        { botToken: new RegExp('^' + parts[1]) },
+        { channelTag: parts[1] }
+      ];
+    } else {
+      filter.userId = key;
+    }
+
     try {
       if (await connectDB()) {
-        await Message.updateMany({ userId: String(userId), sender: 'user', read: false }, { read: true });
+        await Message.updateMany(filter, { read: true });
       }
     } catch (e) {}
 
     const messages = readJsonFile(MESSAGES_FILE, []);
     let changed = false;
     for (const msg of messages) {
-      if (String(msg.userId) === String(userId) && msg.sender === 'user' && !msg.read) {
-        msg.read = true;
-        changed = true;
+      if (key.includes('_')) {
+        const parts = key.split('_');
+        if (String(msg.userId) === parts[0] && ((msg.botToken && msg.botToken.startsWith(parts[1])) || msg.channelTag === parts[1]) && msg.sender === 'user' && !msg.read) {
+          msg.read = true;
+          changed = true;
+        }
+      } else {
+        if (String(msg.userId) === key && msg.sender === 'user' && !msg.read) {
+          msg.read = true;
+          changed = true;
+        }
       }
     }
     if (changed) writeJsonFile(MESSAGES_FILE, messages);
     return true;
+  },
+
+  async getMessagesByUser(convIdOrUserId, limit = 200) {
+    let filter = {};
+    const key = String(convIdOrUserId);
+
+    if (key.includes('_')) {
+      const parts = key.split('_');
+      const uid = parts[0];
+      const botKey = parts[1];
+
+      filter = {
+        userId: uid,
+        $or: [
+          { botToken: new RegExp('^' + botKey) },
+          { channelTag: botKey }
+        ]
+      };
+    } else {
+      filter = { userId: key };
+    }
+
+    try {
+      if (await connectDB()) {
+        const msgs = await Message.find(filter).sort({ createdAt: 1 }).limit(limit);
+        return msgs.map(m => m.toObject());
+      }
+    } catch (e) {
+      console.warn('⚠️ getMessagesByUser fallback to JSON:', e.message);
+    }
+
+    const messages = readJsonFile(MESSAGES_FILE, []);
+    if (key.includes('_')) {
+      const parts = key.split('_');
+      const uid = parts[0];
+      const botKey = parts[1];
+      return messages.filter(m =>
+        String(m.userId) === uid &&
+        ((m.botToken && m.botToken.startsWith(botKey)) || (m.channelTag && m.channelTag === botKey))
+      ).slice(-limit);
+    }
+    return messages.filter(m => String(m.userId) === key).slice(-limit);
   },
 
   getStats() {

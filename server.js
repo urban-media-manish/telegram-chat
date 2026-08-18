@@ -375,23 +375,25 @@ app.post('/api/chat/upload', (req, res) => {
       return res.status(400).json({ success: false, error: 'No dataUrl provided' });
     }
 
-    const matches = dataUrl.match(/^data:([A-Za-z-+/0-9]+);base64,(.+)$/);
     let ext = 'bin';
     let buffer;
 
-    if (matches && matches.length === 3) {
-      const mime = matches[1].toLowerCase();
-      buffer = Buffer.from(matches[2], 'base64');
-      if (mime.includes('image/png')) ext = 'png';
-      else if (mime.includes('image/jpeg') || mime.includes('image/jpg')) ext = 'jpg';
-      else if (mime.includes('image/webp')) ext = 'webp';
-      else if (mime.includes('image/gif')) ext = 'gif';
-      else if (mime.includes('audio/ogg') || mime.includes('audio/opus')) ext = 'ogg';
-      else if (mime.includes('audio/webm')) ext = 'webm';
-      else if (mime.includes('audio/mp4') || mime.includes('audio/m4a')) ext = 'mp4';
-      else if (mime.includes('audio/wav') || mime.includes('audio/x-wav')) ext = 'wav';
-      else if (mime.startsWith('image/')) ext = 'jpg';
-      else if (mime.startsWith('audio/')) ext = 'ogg';
+    if (dataUrl.includes(';base64,')) {
+      const parts = dataUrl.split(';base64,');
+      const header = parts[0].toLowerCase();
+      const base64Data = parts[1];
+      buffer = Buffer.from(base64Data, 'base64');
+
+      if (header.includes('image/png')) ext = 'png';
+      else if (header.includes('image/jpeg') || header.includes('image/jpg')) ext = 'jpg';
+      else if (header.includes('image/webp')) ext = 'webp';
+      else if (header.includes('image/gif')) ext = 'gif';
+      else if (header.includes('audio/ogg') || header.includes('audio/opus')) ext = 'ogg';
+      else if (header.includes('audio/webm')) ext = 'webm';
+      else if (header.includes('audio/mp4') || header.includes('audio/m4a')) ext = 'mp4';
+      else if (header.includes('audio/wav') || header.includes('audio/x-wav')) ext = 'wav';
+      else if (header.includes('image/')) ext = 'jpg';
+      else if (header.includes('audio/')) ext = 'webm';
     } else {
       buffer = Buffer.from(dataUrl, 'base64');
     }

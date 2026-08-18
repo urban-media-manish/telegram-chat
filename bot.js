@@ -1,5 +1,7 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
+const path = require('path');
+const fs = require('fs');
 const { sendMetaCapiLead } = require('./metaCapi');
 const db = require('./db');
 
@@ -434,13 +436,51 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
         notifyRealtime({ type: 'new_lead', lead: autoLead });
       }
 
+      let msgType = 'text';
+      let mediaUrl = '';
+      let mediaType = '';
+      let textContent = msg.text || '';
+
+      if (msg.photo && msg.photo.length > 0) {
+        msgType = 'image';
+        mediaType = 'image';
+        textContent = msg.caption || '';
+        try {
+          const fileId = msg.photo[msg.photo.length - 1].file_id;
+          mediaUrl = await bot.getFileLink(fileId);
+        } catch (e) {
+          console.warn('⚠️ Could not get photo file link:', e.message);
+        }
+      } else if (msg.voice) {
+        msgType = 'voice';
+        mediaType = 'voice';
+        textContent = msg.caption || '';
+        try {
+          mediaUrl = await bot.getFileLink(msg.voice.file_id);
+        } catch (e) {
+          console.warn('⚠️ Could not get voice file link:', e.message);
+        }
+      } else if (msg.audio) {
+        msgType = 'audio';
+        mediaType = 'audio';
+        textContent = msg.audio.title || msg.caption || '';
+        try {
+          mediaUrl = await bot.getFileLink(msg.audio.file_id);
+        } catch (e) {
+          console.warn('⚠️ Could not get audio file link:', e.message);
+        }
+      }
+
       const savedUserMsg = await db.saveMessage({
         userId: user.id,
         userChatId: chatId,
         sender: 'user',
         userName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User ' + user.id,
         userUsername: user.username || '',
-        text: msg.text || '[Media / Attachment]',
+        text: textContent,
+        type: msgType,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
         botToken: botToken,
         channelTag: chTag
       });
@@ -593,7 +633,7 @@ function registerChannelBot(channel) {
   }
 }
 
-async function sendMessageToUser(targetKey, text) {
+async function sendMessageToUser(targetKey, text = '', mediaUrl = '', mediaType = 'text') {
   let userId = String(targetKey);
   let forcedBotToken = '';
   let targetChannelTag = 'default';
@@ -611,11 +651,11 @@ async function sendMessageToUser(targetKey, text) {
       (c.botToken && c.botToken.startsWith(botPrefixOrTag))
     );
 
-    if (matchedChan && matchedChan.botToken) {
-      forcedBotToken = matchedChan.botToken;
+    if (matchedChan) {
       targetChannelTag = matchedChan.tag;
+      if (matchedChan.botToken) forcedBotToken = matchedChan.botToken.trim();
     } else {
-      for (const [tok] of activeBots.entries()) {
+      for (const tok of activeBots.keys()) {
         if (tok.startsWith(botPrefixOrTag)) {
           forcedBotToken = tok;
           break;
@@ -673,10 +713,27 @@ async function sendMessageToUser(targetKey, text) {
 
   for (const candidate of botsToTry) {
     try {
-      await candidate.bot.sendMessage(userChatId, text);
+      if (mediaType === 'image' && mediaUrl) {
+        let imageSource = mediaUrl;
+        if (mediaUrl.startsWith('/uploads/')) {
+          const localPath = path.join(__dirname, 'public', mediaUrl);
+          if (fs.existsSync(localPath)) imageSource = localPath;
+        }
+        await candidate.bot.sendPhoto(userChatId, imageSource, { caption: text || undefined });
+      } else if ((mediaType === 'voice' || mediaType === 'audio') && mediaUrl) {
+        let audioSource = mediaUrl;
+        if (mediaUrl.startsWith('/uploads/')) {
+          const localPath = path.join(__dirname, 'public', mediaUrl);
+          if (fs.existsSync(localPath)) audioSource = localPath;
+        }
+        await candidate.bot.sendVoice(userChatId, audioSource, { caption: text || undefined });
+      } else {
+        await candidate.bot.sendMessage(userChatId, text);
+      }
+
       successfulBotToken = candidate.token;
       sendSuccess = true;
-      console.log(`📤 [Live Chat Delivered] Sent message to User ${userChatId} via Bot [${candidate.token.slice(0, 10)}...]: "${text}"`);
+      console.log(`📤 [Live Chat Delivered] Sent ${mediaType} to User ${userChatId} via Bot [${candidate.token.slice(0, 10)}...]: "${text || mediaUrl}"`);
       break;
     } catch (tgErr) {
       lastError = tgErr;
@@ -702,7 +759,10 @@ async function sendMessageToUser(targetKey, text) {
     userChatId: userChatId,
     sender: 'admin',
     userName: 'Admin',
-    text: text,
+    text: text || '',
+    type: mediaType || (mediaUrl ? (mediaType || 'image') : 'text'),
+    mediaUrl: mediaUrl || '',
+    mediaType: mediaType || '',
     botToken: successfulBotToken,
     channelTag: targetChannelTag || lead?.channelTag || 'default'
   });

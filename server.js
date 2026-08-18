@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const db = require('./db');
 const { initBot, registerChannelBot, sendMessageToUser, setEventBroadcaster } = require('./bot');
 const { sendMetaCapiLead } = require('./metaCapi');
@@ -8,8 +9,11 @@ const { sendMetaCapiLead } = require('./metaCapi');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const UPLOADS_DIR = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 process.on('uncaughtException', (err) => {
@@ -362,15 +366,64 @@ app.get('/api/chat/messages/:userId', async (req, res) => {
   res.json({ success: true, data: messages });
 });
 
-// 10. Send Reply from Web Panel to User via Bot
+// 9b. Upload Media File (Images & Voice Recordings)
+app.post('/api/chat/upload', (req, res) => {
+  try {
+    const { dataUrl, filename, mediaType } = req.body;
+    if (!dataUrl) {
+      return res.status(400).json({ success: false, error: 'No dataUrl provided' });
+    }
+
+    const matches = dataUrl.match(/^data:([A-Za-z-+/0-9]+);base64,(.+)$/);
+    let ext = 'bin';
+    let buffer;
+
+    if (matches && matches.length === 3) {
+      const mime = matches[1].toLowerCase();
+      buffer = Buffer.from(matches[2], 'base64');
+      if (mime.includes('image/png')) ext = 'png';
+      else if (mime.includes('image/jpeg') || mime.includes('image/jpg')) ext = 'jpg';
+      else if (mime.includes('image/webp')) ext = 'webp';
+      else if (mime.includes('image/gif')) ext = 'gif';
+      else if (mime.includes('audio/ogg') || mime.includes('audio/opus')) ext = 'ogg';
+      else if (mime.includes('audio/webm')) ext = 'webm';
+      else if (mime.includes('audio/mp4') || mime.includes('audio/m4a')) ext = 'mp4';
+      else if (mime.includes('audio/wav') || mime.includes('audio/x-wav')) ext = 'wav';
+      else if (mime.startsWith('image/')) ext = 'jpg';
+      else if (mime.startsWith('audio/')) ext = 'ogg';
+    } else {
+      buffer = Buffer.from(dataUrl, 'base64');
+    }
+
+    const uniqueName = `upload_${Date.now()}_${Math.floor(Math.random() * 10000)}.${ext}`;
+    const filePath = path.join(UPLOADS_DIR, uniqueName);
+    fs.writeFileSync(filePath, buffer);
+
+    const publicUrl = `/uploads/${uniqueName}`;
+    return res.json({
+      success: true,
+      url: publicUrl,
+      mediaType: mediaType || (['jpg', 'png', 'webp', 'gif'].includes(ext) ? 'image' : 'voice'),
+      filename: uniqueName
+    });
+  } catch (err) {
+    console.error('❌ Upload error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to process upload: ' + err.message });
+  }
+});
+
+// 10. Send Reply from Web Panel to User via Bot (Text, Image, or Voice)
 app.post('/api/chat/send', async (req, res) => {
-  const { userId, text } = req.body;
-  if (!userId || !text || text.trim() === '') {
-    return res.status(400).json({ success: false, error: 'User ID and message text are required' });
+  const { userId, text, mediaUrl, mediaType } = req.body;
+  if (!userId) {
+    return res.status(400).json({ success: false, error: 'User ID is required' });
+  }
+  if ((!text || text.trim() === '') && !mediaUrl) {
+    return res.status(400).json({ success: false, error: 'Message text or media is required' });
   }
 
   try {
-    const record = await sendMessageToUser(userId, text.trim());
+    const record = await sendMessageToUser(userId, (text || '').trim(), mediaUrl || '', mediaType || 'text');
     res.json({ success: true, data: record });
   } catch (err) {
     console.error('❌ Error sending message from web chat:', err.message);

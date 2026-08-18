@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initNotificationToggle();
   initSSE();
   initChatEventListeners();
+  initChatMediaControls();
   initEventListeners();
   initChannelModalListeners();
 
@@ -101,6 +102,33 @@ function initSSE() {
   }, 1500);
 }
 
+function renderBubbleContent(m) {
+  let contentHtml = '';
+  const isImg = m.type === 'image' || (m.mediaUrl && (m.mediaUrl.match(/\.(jpg|jpeg|png|webp|gif)/i) || m.mediaType === 'image'));
+  const isVoice = m.type === 'voice' || m.type === 'audio' || (m.mediaUrl && (m.mediaUrl.match(/\.(ogg|oga|webm|mp3|wav|m4a)/i) || m.mediaType === 'voice' || m.mediaType === 'audio'));
+
+  if (isImg && m.mediaUrl) {
+    contentHtml += `
+      <div class="bubble-image-wrap" onclick="openImageLightbox('${escapeHtml(m.mediaUrl)}')">
+        <img class="bubble-image" src="${escapeHtml(m.mediaUrl)}" alt="Photo" loading="lazy" />
+      </div>
+    `;
+  } else if (isVoice && m.mediaUrl) {
+    contentHtml += `
+      <div class="bubble-audio-wrap">
+        <audio class="bubble-audio" controls preload="metadata" src="${escapeHtml(m.mediaUrl)}"></audio>
+      </div>
+    `;
+  }
+
+  if (m.text && m.text !== '[Photo]' && m.text !== '🎤 Voice Message' && m.text !== '[Media / Attachment]') {
+    contentHtml += `<div class="bubble-text">${escapeHtml(m.text)}</div>`;
+  } else if (!isImg && !isVoice && m.text) {
+    contentHtml += `<div class="bubble-text">${escapeHtml(m.text)}</div>`;
+  }
+  return contentHtml;
+}
+
 // Directly append message bubble in 0ms without full DOM reload
 function appendMessageBubbleDirectly(m) {
   const container = document.getElementById('chatMessagesContainer');
@@ -111,7 +139,7 @@ function appendMessageBubbleDirectly(m) {
   if (lastBubble) {
     const lastTextEl = lastBubble.querySelector('.bubble-text');
     const isLastAdmin = lastBubble.classList.contains('bubble-admin');
-    if (isLastAdmin === (m.sender === 'admin') && lastTextEl && lastTextEl.textContent.trim() === (m.text || '').trim()) {
+    if (isLastAdmin === (m.sender === 'admin') && lastTextEl && lastTextEl.textContent.trim() === (m.text || '').trim() && !m.mediaUrl) {
       const timeEl = lastBubble.querySelector('.message-time');
       if (timeEl) timeEl.innerHTML = `${formatTimeOnly(m.createdAt || new Date())} ${m.sender === 'admin' ? '✓✓' : ''}`;
       return;
@@ -129,7 +157,7 @@ function appendMessageBubbleDirectly(m) {
   bubbleDiv.className = `message-bubble ${isAdmin ? 'bubble-admin' : 'bubble-user'}`;
   bubbleDiv.innerHTML = `
     <div class="bubble-sender">${isAdmin ? '🛡️ You (via Bot)' : `👤 ${escapeHtml(m.userName || 'Customer')}`}</div>
-    <div class="bubble-text">${escapeHtml(m.text)}</div>
+    ${renderBubbleContent(m)}
     <div class="message-time">${timeFormatted} ${isAdmin ? '✓✓' : ''}</div>
   `;
 
@@ -587,7 +615,7 @@ function renderMessagesStream(messages) {
   const container = document.getElementById('chatMessagesContainer');
   if (!container) return;
 
-  const currentKey = messages.map(m => (m._id || m.id || '') + (m.createdAt || '') + (m.text || '')).join('|');
+  const currentKey = messages.map(m => (m._id || m.id || '') + (m.createdAt || '') + (m.text || '') + (m.mediaUrl || '')).join('|');
   if (currentKey && currentKey === lastRenderedMessagesKey && container.children.length > 0) {
     return; // Exact same messages, skip re-render to prevent blinking
   }
@@ -612,7 +640,7 @@ function renderMessagesStream(messages) {
     html += `
       <div class="message-bubble ${isAdmin ? 'bubble-admin' : 'bubble-user'}">
         <div class="bubble-sender">${isAdmin ? '🛡️ You (via Bot)' : `👤 ${escapeHtml(m.userName || 'Customer')}`}</div>
-        <div class="bubble-text">${escapeHtml(m.text)}</div>
+        ${renderBubbleContent(m)}
         <div class="message-time">${timeFormatted} ${isAdmin ? '✓✓' : ''}</div>
       </div>
     `;
@@ -625,12 +653,246 @@ function renderMessagesStream(messages) {
   }
 }
 
+// Media state for image attachments & voice recordings
+let pendingAttachment = null;
+let mediaRecorder = null;
+let recordedAudioChunks = [];
+let voiceRecordInterval = null;
+let voiceRecordSeconds = 0;
+
+function initChatMediaControls() {
+  const btnAttach = document.getElementById('btnAttachImage');
+  const fileInput = document.getElementById('chatFileInput');
+  const previewBox = document.getElementById('chatAttachmentPreview');
+  const previewImg = document.getElementById('previewThumbImg');
+  const previewName = document.getElementById('previewFileName');
+  const btnCancelPreview = document.getElementById('btnCancelAttachment');
+
+  const btnVoice = document.getElementById('btnVoiceRecord');
+  const voiceBar = document.getElementById('voiceRecordBar');
+  const voiceTimer = document.getElementById('voiceRecordTimer');
+  const btnCancelVoice = document.getElementById('btnCancelVoice');
+  const btnSendVoice = document.getElementById('btnSendVoice');
+
+  // 1. Image Attachment
+  if (btnAttach && fileInput) {
+    btnAttach.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (loadEvt) => {
+        pendingAttachment = {
+          dataUrl: loadEvt.target.result,
+          name: file.name,
+          type: file.type.startsWith('image/') ? 'image' : 'file'
+        };
+        if (previewImg) previewImg.src = loadEvt.target.result;
+        if (previewName) previewName.textContent = file.name;
+        if (previewBox) previewBox.style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (btnCancelPreview) {
+    btnCancelPreview.addEventListener('click', () => {
+      pendingAttachment = null;
+      if (fileInput) fileInput.value = '';
+      if (previewBox) previewBox.style.display = 'none';
+    });
+  }
+
+  // 2. Voice Recorder
+  if (btnVoice) {
+    btnVoice.addEventListener('click', async () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopVoiceRecording(false);
+        return;
+      }
+      startVoiceRecording();
+    });
+  }
+
+  if (btnCancelVoice) {
+    btnCancelVoice.addEventListener('click', () => {
+      stopVoiceRecording(true);
+    });
+  }
+
+  if (btnSendVoice) {
+    btnSendVoice.addEventListener('click', () => {
+      stopVoiceRecording(false, true);
+    });
+  }
+
+  async function startVoiceRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordedAudioChunks = [];
+      
+      let options = { mimeType: 'audio/webm' };
+      if (!MediaRecorder.isTypeSupported('audio/webm')) {
+        if (MediaRecorder.isTypeSupported('audio/mp4')) options = { mimeType: 'audio/mp4' };
+        else if (MediaRecorder.isTypeSupported('audio/ogg')) options = { mimeType: 'audio/ogg' };
+        else options = {};
+      }
+
+      mediaRecorder = new MediaRecorder(stream, options);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedAudioChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        clearInterval(voiceRecordInterval);
+        if (voiceBar) voiceBar.style.display = 'none';
+        if (btnVoice) btnVoice.classList.remove('recording');
+
+        if (mediaRecorder._shouldSend && recordedAudioChunks.length > 0) {
+          const audioBlob = new Blob(recordedAudioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const dataUrl = reader.target.result;
+            await uploadAndSendMedia(dataUrl, 'voice', 'voice_note.webm');
+          };
+          reader.readAsDataURL(audioBlob);
+        }
+      };
+
+      mediaRecorder.start(100);
+      voiceRecordSeconds = 0;
+      if (voiceTimer) voiceTimer.textContent = '0:00';
+      if (voiceBar) voiceBar.style.display = 'flex';
+      if (btnVoice) btnVoice.classList.add('recording');
+
+      voiceRecordInterval = setInterval(() => {
+        voiceRecordSeconds++;
+        const mins = Math.floor(voiceRecordSeconds / 60);
+        const secs = voiceRecordSeconds % 60;
+        if (voiceTimer) voiceTimer.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      }, 1000);
+    } catch (err) {
+      alert('⚠️ Microphone Access Required:\nPlease allow microphone permission in your browser to record voice notes.');
+    }
+  }
+
+  function stopVoiceRecording(cancel = false, send = false) {
+    if (!mediaRecorder) return;
+    mediaRecorder._shouldSend = send && !cancel;
+    if (mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+  }
+}
+
+async function uploadAndSendMedia(dataUrl, mediaType, filename = 'attachment') {
+  if (!activeChatUserId) {
+    alert('Please select a customer chat first.');
+    return;
+  }
+
+  try {
+    const uploadRes = await fetch('/api/chat/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl, mediaType, filename })
+    });
+    const uploadJson = await uploadRes.json();
+    if (!uploadJson.success || !uploadJson.url) {
+      alert('Failed to upload media: ' + (uploadJson.error || 'Unknown error'));
+      return;
+    }
+
+    const mediaUrl = uploadJson.url;
+
+    // Instant local echo
+    appendMessageBubbleDirectly({
+      userId: activeChatUserId,
+      sender: 'admin',
+      userName: 'You',
+      text: '',
+      type: mediaType,
+      mediaUrl: mediaUrl,
+      mediaType: mediaType,
+      createdAt: new Date().toISOString()
+    });
+
+    const sendRes = await fetch('/api/chat/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: activeChatUserId,
+        text: '',
+        mediaUrl: mediaUrl,
+        mediaType: mediaType
+      })
+    });
+
+    const sendJson = await sendRes.json();
+    if (sendJson.success) {
+      await loadActiveChatMessages(activeChatUserId, true);
+      loadConversations(true);
+    } else {
+      alert('Failed to send media via Bot: ' + (sendJson.error || 'Unknown error'));
+    }
+  } catch (err) {
+    alert('Network error sending media: ' + err.message);
+  }
+}
+
+window.openImageLightbox = function(src) {
+  const modal = document.getElementById('imageLightboxModal');
+  const img = document.getElementById('lightboxImg');
+  if (modal && img) {
+    img.src = src;
+    modal.style.display = 'flex';
+  }
+};
+
+window.closeImageLightbox = function() {
+  const modal = document.getElementById('imageLightboxModal');
+  if (modal) modal.style.display = 'none';
+};
+
 async function sendChatMessage() {
   if (!activeChatUserId) return;
   const input = document.getElementById('chatMessageInput');
   if (!input) return;
   const text = input.value.trim();
-  if (!text) return;
+
+  if (!text && !pendingAttachment) return;
+
+  let attachedMediaUrl = '';
+  let attachedMediaType = 'text';
+
+  if (pendingAttachment) {
+    try {
+      const uploadRes = await fetch('/api/chat/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataUrl: pendingAttachment.dataUrl,
+          mediaType: 'image',
+          filename: pendingAttachment.name
+        })
+      });
+      const uploadJson = await uploadRes.json();
+      if (uploadJson.success && uploadJson.url) {
+        attachedMediaUrl = uploadJson.url;
+        attachedMediaType = 'image';
+      }
+    } catch (e) {}
+
+    pendingAttachment = null;
+    const fileInput = document.getElementById('chatFileInput');
+    const previewBox = document.getElementById('chatAttachmentPreview');
+    if (fileInput) fileInput.value = '';
+    if (previewBox) previewBox.style.display = 'none';
+  }
 
   input.value = '';
   input.style.height = 'auto';
@@ -641,6 +903,9 @@ async function sendChatMessage() {
     sender: 'admin',
     userName: 'You',
     text: text,
+    type: attachedMediaType,
+    mediaUrl: attachedMediaUrl,
+    mediaType: attachedMediaType,
     createdAt: new Date().toISOString()
   });
 
@@ -648,7 +913,12 @@ async function sendChatMessage() {
     const res = await fetch('/api/chat/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: activeChatUserId, text: text })
+      body: JSON.stringify({
+        userId: activeChatUserId,
+        text: text,
+        mediaUrl: attachedMediaUrl,
+        mediaType: attachedMediaType
+      })
     });
 
     const json = await res.json();

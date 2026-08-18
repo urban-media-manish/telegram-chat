@@ -465,16 +465,17 @@ function renderConversationsList(convs) {
 }
 
 window.selectConversation = async function(convKey) {
-  activeChatUserId = String(convKey);
+  const targetKey = String(convKey);
+  activeChatUserId = targetKey;
   lastRenderedMessagesKey = '';
-  const conv = allConversations.find(c => String(c.convId || c.userId) === String(convKey));
+  const conv = allConversations.find(c => String(c.convId || c.userId) === targetKey);
 
   if (conv) {
     conv.unreadCount = 0;
   }
 
   // Mark read in DB in background
-  fetch(`/api/chat/read/${convKey}`, { method: 'POST' }).catch(() => {});
+  fetch(`/api/chat/read/${encodeURIComponent(targetKey)}`, { method: 'POST' }).catch(() => {});
 
   const emptyState = document.getElementById('chatEmptyState');
   if (emptyState) emptyState.style.display = 'none';
@@ -511,20 +512,35 @@ window.selectConversation = async function(convKey) {
     }
   }
 
+  // Immediately clear old chat and show loading spinner
+  const container = document.getElementById('chatMessagesContainer');
+  if (container) {
+    container.innerHTML = `
+      <div class="empty-state py-8 text-center">
+        <div class="loading-spinner" style="width:22px; height:22px; margin:0 auto;"></div>
+        <p class="text-muted mt-2">Loading messages...</p>
+      </div>
+    `;
+  }
+
   renderConversationsList(allConversations);
-  await loadActiveChatMessages(convKey);
+  await loadActiveChatMessages(targetKey);
 
   document.getElementById('chatMessageInput')?.focus();
 };
 
 async function loadActiveChatMessages(userId, isSilent = false) {
-  if (!userId) return;
+  if (!userId || activeChatUserId !== userId) return;
   const container = document.getElementById('chatMessagesContainer');
   if (!container) return;
 
   try {
-    const res = await fetch(`/api/chat/messages/${userId}`);
+    const res = await fetch(`/api/chat/messages/${encodeURIComponent(userId)}`);
     const json = await res.json();
+    
+    // Discard response if user already switched to another contact
+    if (activeChatUserId !== userId) return;
+
     if (json.success) {
       const messages = json.data || [];
       

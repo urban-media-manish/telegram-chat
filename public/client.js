@@ -256,9 +256,10 @@ function renderConversationsList(convs) {
 }
 
 window.selectConversation = async function(convKey) {
-  activeChatUserId = String(convKey);
+  const targetKey = String(convKey);
+  activeChatUserId = targetKey;
   lastRenderedMessagesKey = '';
-  const conv = allConversations.find(c => String(c.convId || c.userId) === String(convKey));
+  const conv = allConversations.find(c => String(c.convId || c.userId) === targetKey);
 
   if (conv) {
     conv.unreadCount = 0;
@@ -286,7 +287,7 @@ window.selectConversation = async function(convKey) {
   const idEl = document.getElementById('activeUserId');
   const tgLinkEl = document.getElementById('btnOpenTgProfile');
 
-  const rawUserId = convKey.includes('_') ? convKey.split('_')[0] : convKey;
+  const rawUserId = targetKey.includes('_') ? targetKey.split('_')[0] : targetKey;
 
   if (conv) {
     if (avatarEl) avatarEl.textContent = (conv.userName ? conv.userName.charAt(0) : 'U').toUpperCase();
@@ -307,7 +308,18 @@ window.selectConversation = async function(convKey) {
     if (idEl) idEl.textContent = `ID: ${rawUserId}`;
   }
 
-  await loadMessages(convKey);
+  // Clear previous chat immediately and show loading spinner
+  const container = document.getElementById('chatMessagesContainer');
+  if (container) {
+    container.innerHTML = `
+      <div class="empty-state py-8 text-center">
+        <div class="loading-spinner" style="width:22px; height:22px; margin:0 auto;"></div>
+        <p class="text-muted mt-2">Loading messages...</p>
+      </div>
+    `;
+  }
+
+  await loadMessages(targetKey);
 
   const input = document.getElementById('chatMessageInput');
   if (input && window.innerWidth > 768) input.focus();
@@ -315,22 +327,27 @@ window.selectConversation = async function(convKey) {
 
 // ─── Messages Management ──────────────────────────────────────────────────────
 async function loadMessages(convKey) {
+  if (!convKey || activeChatUserId !== convKey) return;
   const container = document.getElementById('chatMessagesContainer');
   if (!container) return;
 
   try {
     const res = await fetch(`/api/chat/messages/${encodeURIComponent(convKey)}`);
     const json = await res.json();
+    
+    // Discard response if user already switched to another contact
+    if (activeChatUserId !== convKey) return;
+
     if (json.success) {
       const messages = json.data || [];
       
       const newKey = messages.map(m => (m._id || m.id || '') + (m.text || '')).join('|');
-      if (newKey && newKey === lastRenderedMessagesKey) return;
+      if (newKey && newKey === lastRenderedMessagesKey && container.children.length > 0 && !container.querySelector('.loading-spinner')) return;
       lastRenderedMessagesKey = newKey;
 
       if (messages.length === 0) {
         container.innerHTML = `
-          <div class="empty-state py-8">
+          <div class="empty-state py-8 text-center">
             <p class="text-muted">No messages in this chat yet. Type below to send a message!</p>
           </div>
         `;

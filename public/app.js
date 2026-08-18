@@ -39,16 +39,14 @@ function initSSE() {
         const payload = JSON.parse(event.data);
         if (payload.type === 'new_message' && payload.message) {
           const msg = payload.message;
-          const botPrefix = (msg.botToken || '').split(':')[0];
-          const matchedChan = allChannels.find(c => (msg.channelTag && c.tag === msg.channelTag) || (botPrefix && c.botToken && c.botToken.startsWith(botPrefix)));
-          const chTag = matchedChan ? matchedChan.tag : (msg.channelTag || 'default');
-          const msgConvKey = `${msg.userId}_${chTag}`;
+          const openUserId = activeChatUserId ? String(activeChatUserId).split('_')[0] : '';
+          const incomingUserId = String(msg.userId || msg.userChatId || '');
 
           // If message is in active open chat room, render instantly (0ms)
-          if (activeChatUserId && (String(activeChatUserId) === msgConvKey || String(activeChatUserId) === `${msg.userId}_${msg.channelTag}`)) {
+          if (openUserId && openUserId === incomingUserId) {
             appendMessageBubbleDirectly(msg);
           } else if (!activeChatUserId && window.innerWidth > 768) {
-            selectConversation(msgConvKey);
+            selectConversation(`${msg.userId}_${msg.channelTag || 'default'}`);
           }
 
           // Sound & OS Notification for customer messages
@@ -79,6 +77,18 @@ function initSSE() {
 function appendMessageBubbleDirectly(m) {
   const container = document.getElementById('chatMessagesContainer');
   if (!container) return;
+
+  // Prevent duplicate bubble if last bubble is identical
+  const lastBubble = container.lastElementChild;
+  if (lastBubble) {
+    const lastTextEl = lastBubble.querySelector('.bubble-text');
+    const isLastAdmin = lastBubble.classList.contains('bubble-admin');
+    if (isLastAdmin === (m.sender === 'admin') && lastTextEl && lastTextEl.textContent.trim() === (m.text || '').trim()) {
+      const timeEl = lastBubble.querySelector('.message-time');
+      if (timeEl) timeEl.innerHTML = `${formatTimeOnly(m.createdAt || new Date())} ${m.sender === 'admin' ? '✓✓' : ''}`;
+      return;
+    }
+  }
 
   // Remove empty state if present
   const emptyState = container.querySelector('.empty-state');
@@ -573,18 +583,15 @@ async function sendChatMessage() {
   if (!text) return;
 
   input.value = '';
-  const container = document.getElementById('chatMessagesContainer');
-  if (container) {
-    const tempHtml = `
-      <div class="message-bubble bubble-admin" style="opacity:0.85;">
-        <div class="bubble-sender">🛡️ You (via Bot)</div>
-        <div class="bubble-text">${escapeHtml(text)}</div>
-        <div class="message-time">${formatTimeOnly(new Date())} ⏳</div>
-      </div>
-    `;
-    container.insertAdjacentHTML('beforeend', tempHtml);
-    container.scrollTop = container.scrollHeight;
-  }
+
+  // Instant local echo
+  appendMessageBubbleDirectly({
+    userId: activeChatUserId,
+    sender: 'admin',
+    userName: 'You',
+    text: text,
+    createdAt: new Date().toISOString()
+  });
 
   try {
     const res = await fetch('/api/chat/send', {
@@ -595,6 +602,7 @@ async function sendChatMessage() {
 
     const json = await res.json();
     if (json.success) {
+      lastRenderedMessagesKey = '';
       await loadActiveChatMessages(activeChatUserId, true);
       loadConversations(true);
     } else {

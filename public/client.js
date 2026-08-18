@@ -102,12 +102,11 @@ function initSSE() {
 
           const msgConvKey = `${msg.userId}_${msg.channelTag || currentChannelTag || 'default'}`;
 
+          const openUserId = activeChatUserId ? String(activeChatUserId).split('_')[0] : '';
+          const incomingUserId = String(msg.userId || msg.userChatId || '');
+
           // If currently viewing this chat, append message in 0ms
-          if (activeChatUserId && (
-            String(activeChatUserId) === msgConvKey || 
-            String(activeChatUserId) === String(msg.userId) ||
-            String(activeChatUserId).startsWith(String(msg.userId) + '_')
-          )) {
+          if (openUserId && openUserId === incomingUserId) {
             appendMessageBubbleDirectly(msg);
           } else if (!activeChatUserId && window.innerWidth > 768) {
             selectConversation(msgConvKey);
@@ -135,6 +134,18 @@ function initSSE() {
 function appendMessageBubbleDirectly(m) {
   const container = document.getElementById('chatMessagesContainer');
   if (!container) return;
+
+  // Prevent duplicate bubble if last bubble is identical
+  const lastBubble = container.lastElementChild;
+  if (lastBubble) {
+    const lastTextEl = lastBubble.querySelector('.bubble-text');
+    const isLastAdmin = lastBubble.classList.contains('bubble-admin');
+    if (isLastAdmin === (m.sender === 'admin') && lastTextEl && lastTextEl.textContent.trim() === (m.text || '').trim()) {
+      const timeEl = lastBubble.querySelector('.message-time');
+      if (timeEl) timeEl.innerHTML = `${formatTimeOnly(m.createdAt || new Date())} ${m.sender === 'admin' ? '✓✓' : ''}`;
+      return;
+    }
+  }
 
   const emptyState = container.querySelector('.empty-state');
   if (emptyState) emptyState.remove();

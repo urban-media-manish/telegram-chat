@@ -27,7 +27,7 @@ async function getOrCreateUserTopic(bot, adminChatId, user, channelName, channel
 
     try {
       const topic = await bot.createForumTopic(adminChatId, topicTitle);
-      userTopic = db.saveUserTopic(user.id, {
+      userTopic = await db.saveUserTopic(user.id, {
         threadId: topic.message_thread_id,
         userChatId: userChatId,
         userName: fullName,
@@ -56,7 +56,7 @@ async function getOrCreateUserTopic(bot, adminChatId, user, channelName, channel
     if (userTopic.userChatId !== userChatId || userTopic.botToken !== botToken) {
       userTopic.userChatId = userChatId;
       userTopic.botToken = botToken;
-      db.saveUserTopic(user.id, userTopic);
+      await db.saveUserTopic(user.id, userTopic);
     }
   }
 
@@ -71,7 +71,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
     const isForum = isGroup || String(chatId).startsWith('-100');
     const username = msg.from.username || msg.from.first_name || 'Admin';
 
-    db.setAdminChatId(chatId, username, isForum);
+    await db.setAdminChatId(chatId, username, isForum);
     console.log(`👑 [Admin Connected] Chat ID: ${chatId} (Forum: ${isForum})`);
 
     try {
@@ -152,7 +152,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
     });
 
     // Record Lead into Local Database
-    const leadRecord = db.addLead({
+    const leadRecord = await db.addLead({
       userId: user.id,
       firstName: user.first_name || '',
       lastName: user.last_name || '',
@@ -253,7 +253,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           await targetBot.sendSticker(userRecord.userChatId, msg.sticker.file_id);
         }
 
-        db.saveMessage({
+        await db.saveMessage({
           userId: userRecord.userId,
           userChatId: userRecord.userChatId,
           sender: 'admin',
@@ -325,7 +325,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           await targetBot.sendSticker(replyTarget.userChatId, msg.sticker.file_id);
         }
 
-        const savedAdminMsg = db.saveMessage({
+        const savedAdminMsg = await db.saveMessage({
           userId: replyTarget.userId,
           userChatId: replyTarget.userChatId,
           sender: 'admin',
@@ -357,7 +357,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
       const existingLeads = db.getLeads(500);
       const isLeadRecorded = existingLeads.some(l => String(l.userId) === String(user.id));
       if (!isLeadRecorded) {
-        const autoLead = db.addLead({
+        const autoLead = await db.addLead({
           userId: user.id,
           firstName: user.first_name || '',
           lastName: user.last_name || '',
@@ -373,7 +373,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
         notifyRealtime({ type: 'new_lead', lead: autoLead });
       }
 
-      const savedUserMsg = db.saveMessage({
+      const savedUserMsg = await db.saveMessage({
         userId: user.id,
         userChatId: chatId,
         sender: 'user',
@@ -537,7 +537,7 @@ async function sendMessageToUser(userId, text) {
     userChatId = userId;
   }
 
-  const messages = db.getMessagesByUser(userId, 50);
+  const messages = await db.getMessagesByUser(userId, 50);
   const lastMsg = messages.slice().reverse().find(m => m.botToken);
   const botToken = lastMsg?.botToken || '';
 
@@ -560,7 +560,7 @@ async function sendMessageToUser(userId, text) {
   }
 
   // Save to DB
-  const record = db.saveMessage({
+  const record = await db.saveMessage({
     userId: userId,
     userChatId: userChatId,
     sender: 'admin',

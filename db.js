@@ -23,6 +23,9 @@ async function connectDB() {
       });
       isConnected = true;
       console.log('✅ MongoDB Atlas connected successfully!');
+      try {
+        await Lead.collection.dropIndex('userId_1');
+      } catch (err) {}
       return true;
     } catch (err) {
       console.error('⚠️ MongoDB connection attempt failed (using JSON fallback):', err.message);
@@ -459,18 +462,6 @@ const db = {
     return record;
   },
 
-  async getMessagesByUser(userId, limit = 100) {
-    try {
-      if (await connectDB()) {
-        const msgs = await Message.find({ userId: String(userId) }).sort({ createdAt: 1 }).limit(limit);
-        return msgs.map(m => m.toObject());
-      }
-    } catch (e) {
-      console.warn('⚠️ getMessagesByUser fallback to JSON:', e.message);
-    }
-    const messages = readJsonFile(MESSAGES_FILE, []);
-    return messages.filter(m => String(m.userId) === String(userId)).slice(-limit);
-  },
 
   async getConversations() {
     const admin = this.getAdminConfig();
@@ -652,22 +643,53 @@ const db = {
       uid = parts[0];
       const botKey = parts[1];
 
-      const channels = this.getChannels();
-      const matchedChan = channels.find(c => c.tag === botKey || (c.botToken && c.botToken.startsWith(botKey)));
+      let channels = [];
+      try {
+        if (await connectDB()) {
+          channels = (await Channel.find({})).map(c => c.toObject());
+        }
+      } catch (e) {}
+      if (channels.length === 0) channels = this.getChannels();
+
+      const matchedChan = channels.find(c => 
+        (c.tag && c.tag.toLowerCase() === botKey.toLowerCase()) || 
+        (c.botToken && c.botToken.startsWith(botKey))
+      );
       matchedTag = matchedChan ? matchedChan.tag : botKey;
       matchedPrefix = matchedChan && matchedChan.botToken ? matchedChan.botToken.split(':')[0] : botKey;
 
+      const orConditions = [
+        { channelTag: matchedTag },
+        { channelTag: botKey }
+      ];
+      if (matchedPrefix) {
+        orConditions.push({ botToken: new RegExp('^' + matchedPrefix) });
+      }
+      if (botKey && botKey !== matchedPrefix && botKey !== matchedTag) {
+        orConditions.push({ botToken: new RegExp('^' + botKey) });
+      }
+      if (matchedTag === 'meta_ad' || matchedTag === 'default') {
+        orConditions.push({ channelTag: 'default' });
+        orConditions.push({ channelTag: null });
+        orConditions.push({ channelTag: '' });
+      }
+
       filter = {
-        userId: uid,
         $or: [
-          { channelTag: matchedTag },
-          { botToken: new RegExp('^' + matchedPrefix) },
-          { botToken: new RegExp('^' + botKey) },
-          { channelTag: botKey }
+          { userId: String(uid) },
+          { userId: Number(uid) || String(uid) }
+        ],
+        $and: [
+          { $or: orConditions }
         ]
       };
     } else {
-      filter = { userId: key };
+      filter = {
+        $or: [
+          { userId: String(key) },
+          { userId: Number(key) || String(key) }
+        ]
+      };
     }
 
     try {
@@ -685,14 +707,15 @@ const db = {
       const u = parts[0];
       const botKey = parts[1];
       return messages.filter(m =>
-        String(m.userId) === u &&
+        (String(m.userId) === u || Number(m.userId) === Number(u)) &&
         (m.channelTag === matchedTag ||
          (matchedPrefix && m.botToken && m.botToken.startsWith(matchedPrefix)) ||
          (botKey && m.botToken && m.botToken.startsWith(botKey)) ||
-         m.channelTag === botKey)
+         m.channelTag === botKey ||
+         ((matchedTag === 'meta_ad' || matchedTag === 'default') && (!m.channelTag || m.channelTag === 'default')))
       ).slice(-limit);
     }
-    return messages.filter(m => String(m.userId) === key).slice(-limit);
+    return messages.filter(m => String(m.userId) === key || Number(m.userId) === Number(key)).slice(-limit);
   },
 
   getStats() {

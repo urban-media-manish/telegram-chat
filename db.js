@@ -4,24 +4,40 @@ const fs = require('fs');
 
 // ─── MongoDB Connection ───────────────────────────────────────────────────────
 let isConnected = false;
+let connectionPromise = null;
 
 async function connectDB() {
-  if (isConnected) return;
+  if (isConnected && mongoose.connection.readyState === 1) return true;
   const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    console.warn('⚠️ MONGODB_URI not set. Using JSON file fallback.');
-    return;
-  }
-  try {
-    await mongoose.connect(uri, { dbName: 'teletrack' });
-    isConnected = true;
-    console.log('✅ MongoDB Atlas connected successfully!');
-  } catch (err) {
-    console.error('❌ MongoDB connection failed:', err.message);
-  }
+  if (!uri) return false;
+
+  if (connectionPromise) return connectionPromise;
+
+  connectionPromise = (async () => {
+    try {
+      await mongoose.connect(uri, {
+        dbName: 'teletrack',
+        serverSelectionTimeoutMS: 4000,
+        connectTimeoutMS: 4000,
+        socketTimeoutMS: 8000
+      });
+      isConnected = true;
+      console.log('✅ MongoDB Atlas connected successfully!');
+      return true;
+    } catch (err) {
+      console.error('⚠️ MongoDB connection attempt failed (using JSON fallback):', err.message);
+      isConnected = false;
+      return false;
+    } finally {
+      connectionPromise = null;
+    }
+  })();
+
+  return connectionPromise;
 }
 
-connectDB();
+// Background auto-connect without blocking
+connectDB().catch(() => {});
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const ChannelSchema = new mongoose.Schema({
@@ -143,16 +159,17 @@ const db = {
   },
 
   async setAdminChatId(chatId, username = '', isForum = false) {
-    await connectDB();
     const data = {
       adminChatId: String(chatId),
       adminUsername: username,
       isForum: isForum || String(chatId).startsWith('-100'),
       updatedAt: new Date()
     };
-    if (isConnected) {
-      await Admin.findOneAndUpdate({ key: 'main' }, data, { upsert: true, returnDocument: 'after' });
-    }
+    try {
+      if (await connectDB()) {
+        await Admin.findOneAndUpdate({ key: 'main' }, data, { upsert: true, returnDocument: 'after' });
+      }
+    } catch (e) {}
     writeJsonFile(ADMIN_FILE, { ...data, key: 'main' });
     return data;
   },
@@ -171,7 +188,6 @@ const db = {
   },
 
   async saveUserTopic(userId, data) {
-    await connectDB();
     const record = {
       userId: String(userId),
       threadId: data.threadId,
@@ -182,9 +198,11 @@ const db = {
       channelTag: data.channelTag || 'default',
       updatedAt: new Date()
     };
-    if (isConnected) {
-      await Topic.findOneAndUpdate({ userId: String(userId) }, record, { upsert: true, returnDocument: 'after' });
-    }
+    try {
+      if (await connectDB()) {
+        await Topic.findOneAndUpdate({ userId: String(userId) }, record, { upsert: true, returnDocument: 'after' });
+      }
+    } catch (e) {}
     const topics = readJsonFile(TOPICS_FILE, {});
     topics[String(userId)] = record;
     writeJsonFile(TOPICS_FILE, topics);
@@ -210,7 +228,6 @@ const db = {
         if (dbChannels.length > 0) {
           writeJsonFile(CHANNELS_FILE, dbChannels.map(c => c.toObject()));
         } else if (jsonChannels.length > 0) {
-          // Seed MongoDB from JSON if empty
           Promise.all(jsonChannels.map(ch =>
             Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, returnDocument: 'after' })
           )).catch(() => {});
@@ -221,22 +238,24 @@ const db = {
   },
 
   async getChannelsAsync() {
-    await connectDB();
-    if (isConnected) {
-      let dbChannels = await Channel.find({});
-      if (dbChannels.length === 0) {
-        // Seed from JSON
-        const jsonChannels = readJsonFile(CHANNELS_FILE, []);
-        if (jsonChannels.length > 0) {
-          for (const ch of jsonChannels) {
-            await Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, returnDocument: 'after' });
+    try {
+      if (await connectDB()) {
+        let dbChannels = await Channel.find({});
+        if (dbChannels.length === 0) {
+          const jsonChannels = readJsonFile(CHANNELS_FILE, []);
+          if (jsonChannels.length > 0) {
+            for (const ch of jsonChannels) {
+              await Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, returnDocument: 'after' });
+            }
+            dbChannels = await Channel.find({});
           }
-          dbChannels = await Channel.find({});
         }
+        const list = dbChannels.map(c => c.toObject());
+        if (list.length > 0) writeJsonFile(CHANNELS_FILE, list);
+        return list;
       }
-      const list = dbChannels.map(c => c.toObject());
-      if (list.length > 0) writeJsonFile(CHANNELS_FILE, list);
-      return list;
+    } catch (e) {
+      console.warn('⚠️ getChannelsAsync fallback to JSON:', e.message);
     }
     return readJsonFile(CHANNELS_FILE, []);
   },
@@ -248,7 +267,6 @@ const db = {
   },
 
   async saveChannel(channelData) {
-    await connectDB();
     const cleanTag = channelData.tag.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
     const record = {
       tag: cleanTag,
@@ -263,11 +281,15 @@ const db = {
       updatedAt: new Date()
     };
 
-    if (isConnected) {
-      const ch = await Channel.findOneAndUpdate({ tag: cleanTag }, record, { upsert: true, returnDocument: 'after' });
-      const all = await Channel.find({});
-      writeJsonFile(CHANNELS_FILE, all.map(c => c.toObject()));
-      return ch.toObject();
+    try {
+      if (await connectDB()) {
+        const ch = await Channel.findOneAndUpdate({ tag: cleanTag }, record, { upsert: true, returnDocument: 'after' });
+        const all = await Channel.find({});
+        writeJsonFile(CHANNELS_FILE, all.map(c => c.toObject()));
+        return ch.toObject();
+      }
+    } catch (e) {
+      console.warn('⚠️ saveChannel fallback to JSON:', e.message);
     }
 
     const channels = readJsonFile(CHANNELS_FILE, []);
@@ -284,22 +306,21 @@ const db = {
   },
 
   async deleteChannel(tag) {
-    await connectDB();
-    if (isConnected) {
-      await Channel.deleteOne({ tag: tag.trim().toLowerCase() });
-      const all = await Channel.find({});
-      writeJsonFile(CHANNELS_FILE, all.map(c => c.toObject()));
-    } else {
-      const channels = readJsonFile(CHANNELS_FILE, []);
-      writeJsonFile(CHANNELS_FILE, channels.filter(c => c.tag.toLowerCase() !== tag.trim().toLowerCase()));
-    }
+    try {
+      if (await connectDB()) {
+        await Channel.deleteOne({ tag: tag.trim().toLowerCase() });
+        const all = await Channel.find({});
+        writeJsonFile(CHANNELS_FILE, all.map(c => c.toObject()));
+        return true;
+      }
+    } catch (e) {}
+
+    const channels = readJsonFile(CHANNELS_FILE, []);
+    writeJsonFile(CHANNELS_FILE, channels.filter(c => c.tag.toLowerCase() !== tag.trim().toLowerCase()));
     return true;
   },
 
   getLeads(limit = 100) {
-    if (isConnected) {
-      return readJsonFile(LEADS_FILE, []).slice(0, limit);
-    }
     const leads = readJsonFile(LEADS_FILE, []);
     const uniqueMap = new Map();
     for (let i = leads.length - 1; i >= 0; i--) {
@@ -313,47 +334,52 @@ const db = {
   },
 
   async getLeadsAsync(limit = 100) {
-    await connectDB();
-    if (isConnected) {
-      const leads = await Lead.find({}).sort({ lastActiveAt: -1 }).limit(limit);
-      const list = leads.map(l => l.toObject());
-      writeJsonFile(LEADS_FILE, list);
-      return list;
+    try {
+      if (await connectDB()) {
+        const leads = await Lead.find({}).sort({ lastActiveAt: -1 }).limit(limit);
+        const list = leads.map(l => l.toObject());
+        writeJsonFile(LEADS_FILE, list);
+        return list;
+      }
+    } catch (e) {
+      console.warn('⚠️ getLeadsAsync fallback to JSON:', e.message);
     }
     return this.getLeads(limit);
   },
 
   async addLead(leadData) {
-    await connectDB();
     const uid = String(leadData.userId);
     const now = new Date();
 
-    if (isConnected) {
-      // Build complete update - all fields in $set to avoid $setOnInsert conflict
-      const update = {
-        firstName: leadData.firstName || '',
-        lastName: leadData.lastName || '',
-        username: leadData.username || '',
-        languageCode: leadData.languageCode || 'en',
-        lastActiveAt: now,
-        channelTag: leadData.channelTag || 'default',
-        channelName: leadData.channelName || 'Default / Master',
-        rawParam: leadData.rawParam || '',
-        capiStatus: leadData.capiStatus || 'pending',
-        capiTraceId: leadData.capiTraceId || '',
-        capiError: leadData.capiError || null
-      };
-      const lead = await Lead.findOneAndUpdate(
-        { userId: uid },
-        {
-          $set: update,
-          $setOnInsert: { createdAt: now }
-        },
-        { upsert: true, returnDocument: 'after' }
-      );
-      const all = await Lead.find({}).sort({ lastActiveAt: -1 });
-      writeJsonFile(LEADS_FILE, all.map(l => l.toObject()));
-      return lead.toObject();
+    try {
+      if (await connectDB()) {
+        const update = {
+          firstName: leadData.firstName || '',
+          lastName: leadData.lastName || '',
+          username: leadData.username || '',
+          languageCode: leadData.languageCode || 'en',
+          lastActiveAt: now,
+          channelTag: leadData.channelTag || 'default',
+          channelName: leadData.channelName || 'Default / Master',
+          rawParam: leadData.rawParam || '',
+          capiStatus: leadData.capiStatus || 'pending',
+          capiTraceId: leadData.capiTraceId || '',
+          capiError: leadData.capiError || null
+        };
+        const lead = await Lead.findOneAndUpdate(
+          { userId: uid },
+          {
+            $set: update,
+            $setOnInsert: { createdAt: now }
+          },
+          { upsert: true, returnDocument: 'after' }
+        );
+        const all = await Lead.find({}).sort({ lastActiveAt: -1 });
+        writeJsonFile(LEADS_FILE, all.map(l => l.toObject()));
+        return lead.toObject();
+      }
+    } catch (e) {
+      console.warn('⚠️ addLead fallback to JSON:', e.message);
     }
 
     const leads = readJsonFile(LEADS_FILE, []);
@@ -400,7 +426,6 @@ const db = {
   },
 
   async saveMessage(msgData) {
-    await connectDB();
     const record = {
       userId: String(msgData.userId),
       userChatId: msgData.userChatId,
@@ -414,12 +439,18 @@ const db = {
       read: false,
       createdAt: new Date()
     };
-    if (isConnected) {
-      const msg = await Message.create(record);
-      const recent = await Message.find({}).sort({ createdAt: -1 }).limit(500);
-      writeJsonFile(MESSAGES_FILE, recent.map(m => m.toObject()).reverse());
-      return msg.toObject();
+
+    try {
+      if (await connectDB()) {
+        const msg = await Message.create(record);
+        const recent = await Message.find({}).sort({ createdAt: -1 }).limit(500);
+        writeJsonFile(MESSAGES_FILE, recent.map(m => m.toObject()).reverse());
+        return msg.toObject();
+      }
+    } catch (e) {
+      console.warn('⚠️ saveMessage fallback to JSON:', e.message);
     }
+
     const messages = readJsonFile(MESSAGES_FILE, []);
     record.id = 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
     messages.push(record);
@@ -429,26 +460,33 @@ const db = {
   },
 
   async getMessagesByUser(userId, limit = 100) {
-    await connectDB();
-    if (isConnected) {
-      const msgs = await Message.find({ userId: String(userId) }).sort({ createdAt: 1 }).limit(limit);
-      return msgs.map(m => m.toObject());
+    try {
+      if (await connectDB()) {
+        const msgs = await Message.find({ userId: String(userId) }).sort({ createdAt: 1 }).limit(limit);
+        return msgs.map(m => m.toObject());
+      }
+    } catch (e) {
+      console.warn('⚠️ getMessagesByUser fallback to JSON:', e.message);
     }
     const messages = readJsonFile(MESSAGES_FILE, []);
     return messages.filter(m => String(m.userId) === String(userId)).slice(-limit);
   },
 
   async getConversations() {
-    await connectDB();
     const admin = this.getAdminConfig();
     const adminId = admin.adminChatId ? String(admin.adminChatId) : null;
     const EXCLUDE = new Set(['5212375937', '-1004309264544', adminId].filter(Boolean));
 
     let leads = [], messages = [];
-    if (isConnected) {
-      leads = (await Lead.find({}).sort({ lastActiveAt: -1 })).map(l => l.toObject());
-      messages = (await Message.find({}).sort({ createdAt: 1 })).map(m => m.toObject());
-    } else {
+    try {
+      if (await connectDB()) {
+        leads = (await Lead.find({}).sort({ lastActiveAt: -1 })).map(l => l.toObject());
+        messages = (await Message.find({}).sort({ createdAt: 1 })).map(m => m.toObject());
+      } else {
+        leads = readJsonFile(LEADS_FILE, []);
+        messages = readJsonFile(MESSAGES_FILE, []);
+      }
+    } catch (e) {
       leads = readJsonFile(LEADS_FILE, []);
       messages = readJsonFile(MESSAGES_FILE, []);
     }
@@ -510,10 +548,12 @@ const db = {
   },
 
   async markMessagesRead(userId) {
-    await connectDB();
-    if (isConnected) {
-      await Message.updateMany({ userId: String(userId), sender: 'user', read: false }, { read: true });
-    }
+    try {
+      if (await connectDB()) {
+        await Message.updateMany({ userId: String(userId), sender: 'user', read: false }, { read: true });
+      }
+    } catch (e) {}
+
     const messages = readJsonFile(MESSAGES_FILE, []);
     let changed = false;
     for (const msg of messages) {
@@ -546,25 +586,28 @@ const db = {
   },
 
   async getStatsAsync() {
-    await connectDB();
-    if (isConnected) {
-      const leads = (await Lead.find({})).map(l => l.toObject());
-      writeJsonFile(LEADS_FILE, leads);
-      const channels = this.getChannels();
-      const admin = this.getAdminConfig();
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      let todayLeads = 0, successfulCapi = 0, failedCapi = 0;
-      const channelCounts = {};
-      for (const lead of leads) {
-        const time = new Date(lead.createdAt).getTime();
-        if (time >= startOfToday) todayLeads++;
-        if (lead.capiStatus === 'success') successfulCapi++;
-        if (lead.capiStatus === 'failed') failedCapi++;
-        const ch = lead.channelTag || 'other';
-        channelCounts[ch] = (channelCounts[ch] || 0) + 1;
+    try {
+      if (await connectDB()) {
+        const leads = (await Lead.find({})).map(l => l.toObject());
+        writeJsonFile(LEADS_FILE, leads);
+        const channels = this.getChannels();
+        const admin = this.getAdminConfig();
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        let todayLeads = 0, successfulCapi = 0, failedCapi = 0;
+        const channelCounts = {};
+        for (const lead of leads) {
+          const time = new Date(lead.createdAt).getTime();
+          if (time >= startOfToday) todayLeads++;
+          if (lead.capiStatus === 'success') successfulCapi++;
+          if (lead.capiStatus === 'failed') failedCapi++;
+          const ch = lead.channelTag || 'other';
+          channelCounts[ch] = (channelCounts[ch] || 0) + 1;
+        }
+        return { totalLeads: leads.length, todayLeads, successfulCapi, failedCapi, totalChannels: channels.length, channelCounts, adminConnected: !!admin.adminChatId };
       }
-      return { totalLeads: leads.length, todayLeads, successfulCapi, failedCapi, totalChannels: channels.length, channelCounts, adminConnected: !!admin.adminChatId };
+    } catch (e) {
+      console.warn('⚠️ getStatsAsync fallback to JSON:', e.message);
     }
     return this.getStats();
   }

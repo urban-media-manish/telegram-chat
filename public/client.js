@@ -37,12 +37,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadConversations();
   }
   
-  // Auto refresh conversation list periodically as backup
+  // Auto sync active chat and conversation list in real-time (1.5s interval)
   setInterval(() => {
     if (isClientAuthenticated()) {
+      if (activeChatUserId) {
+        loadMessages(activeChatUserId);
+      }
       loadConversations(true);
     }
-  }, 10000);
+  }, 1500);
 });
 
 // ─── Client Channel Branding ──────────────────────────────────────────────────
@@ -108,6 +111,7 @@ function initSSE() {
           // If currently viewing this chat, append message in 0ms
           if (openUserId && openUserId === incomingUserId) {
             appendMessageBubbleDirectly(msg);
+            if (activeChatUserId) loadMessages(activeChatUserId);
           } else if (!activeChatUserId && window.innerWidth > 768) {
             selectConversation(msgConvKey);
           }

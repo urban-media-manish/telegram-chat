@@ -45,6 +45,7 @@ function initSSE() {
           // If message is in active open chat room, render instantly (0ms)
           if (openUserId && openUserId === incomingUserId) {
             appendMessageBubbleDirectly(msg);
+            loadActiveChatMessages(activeChatUserId, true);
           } else if (!activeChatUserId && window.innerWidth > 768) {
             selectConversation(`${msg.userId}_${msg.channelTag || 'default'}`);
           }
@@ -66,11 +67,21 @@ function initSSE() {
     };
 
     es.onerror = () => {
-      // Reconnects automatically
+      // Auto reconnects
     };
   } catch (err) {
     console.warn('SSE connection notice:', err);
   }
+
+  // Active chat real-time sync heartbeat (1.5s interval)
+  setInterval(() => {
+    if (localStorage.getItem('teletrack_admin_auth')) {
+      if (activeChatUserId) {
+        loadActiveChatMessages(activeChatUserId, true);
+      }
+      loadConversations(true);
+    }
+  }, 1500);
 }
 
 // Directly append message bubble in 0ms without full DOM reload

@@ -171,8 +171,15 @@ function appendMessageBubbleDirectly(m) {
   const lastBubble = container.lastElementChild;
   if (lastBubble) {
     const lastTextEl = lastBubble.querySelector('.bubble-text');
+    const lastImgEl = lastBubble.querySelector('.bubble-image');
+    const lastAudioEl = lastBubble.querySelector('.bubble-audio');
     const isLastAdmin = lastBubble.classList.contains('bubble-admin');
-    if (isLastAdmin === (m.sender === 'admin') && lastTextEl && lastTextEl.textContent.trim() === (m.text || '').trim() && !m.mediaUrl) {
+
+    const isSameText = (!m.text && !lastTextEl) || (lastTextEl && lastTextEl.textContent.trim() === (m.text || '').trim());
+    const isSameMedia = (!m.mediaUrl && !lastImgEl && !lastAudioEl) ||
+                        (m.mediaUrl && ((lastImgEl && lastImgEl.src.includes(m.mediaUrl)) || (lastAudioEl && lastAudioEl.src.includes(m.mediaUrl))));
+
+    if (isLastAdmin === (m.sender === 'admin') && isSameText && isSameMedia) {
       const timeEl = lastBubble.querySelector('.message-time');
       if (timeEl) timeEl.innerHTML = `${formatTimeOnly(m.createdAt || new Date())} ${m.sender === 'admin' ? '✓✓' : ''}`;
       return;

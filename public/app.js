@@ -790,7 +790,7 @@ function renderChannels(channels) {
           </div>
           <div class="info-row">
             <span class="info-label">Custom Bot:</span>
-            <span class="info-value">${hasBot ? '🟢 Dedicated Bot Active' : '⚪ Master Bot (.env)'}</span>
+            <span class="info-value">${ch.botUsername ? `🟢 @${escapeHtml(ch.botUsername)}` : (hasBot ? '🟢 Dedicated Bot Active' : '⚪ Master Bot (.env)')}</span>
           </div>
           <div class="info-row">
             <span class="info-label">Meta Pixel:</span>

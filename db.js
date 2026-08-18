@@ -1,6 +1,99 @@
-const fs = require('fs');
+const mongoose = require('mongoose');
 const path = require('path');
+const fs = require('fs');
 
+// ─── MongoDB Connection ───────────────────────────────────────────────────────
+let isConnected = false;
+
+async function connectDB() {
+  if (isConnected) return;
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    console.warn('⚠️ MONGODB_URI not set. Using JSON file fallback.');
+    return;
+  }
+  try {
+    await mongoose.connect(uri, { dbName: 'teletrack' });
+    isConnected = true;
+    console.log('✅ MongoDB Atlas connected successfully!');
+  } catch (err) {
+    console.error('❌ MongoDB connection failed:', err.message);
+  }
+}
+
+connectDB();
+
+// ─── Schemas ─────────────────────────────────────────────────────────────────
+const ChannelSchema = new mongoose.Schema({
+  tag: { type: String, required: true, unique: true },
+  name: String,
+  botUsername: { type: String, default: '' },
+  link: { type: String, default: '' },
+  buttonText: String,
+  welcomeMessage: String,
+  pixelId: { type: String, default: '' },
+  accessToken: { type: String, default: '' },
+  botToken: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const LeadSchema = new mongoose.Schema({
+  userId: { type: String, required: true, unique: true },
+  firstName: { type: String, default: '' },
+  lastName: { type: String, default: '' },
+  username: { type: String, default: '' },
+  languageCode: { type: String, default: 'en' },
+  channelTag: { type: String, default: 'default' },
+  channelName: { type: String, default: 'Default / Master' },
+  rawParam: { type: String, default: '' },
+  capiStatus: { type: String, default: 'pending' },
+  capiTraceId: { type: String, default: '' },
+  capiError: { type: String, default: null },
+  lastActiveAt: { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const MessageSchema = new mongoose.Schema({
+  userId: String,
+  userChatId: mongoose.Schema.Types.Mixed,
+  sender: String,
+  userName: { type: String, default: '' },
+  userUsername: { type: String, default: '' },
+  text: { type: String, default: '' },
+  type: { type: String, default: 'text' },
+  botToken: { type: String, default: '' },
+  channelTag: { type: String, default: 'default' },
+  read: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const AdminSchema = new mongoose.Schema({
+  key: { type: String, default: 'main', unique: true },
+  adminChatId: { type: String, default: null },
+  adminUsername: { type: String, default: null },
+  isForum: { type: Boolean, default: false },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const TopicSchema = new mongoose.Schema({
+  userId: { type: String, required: true, unique: true },
+  threadId: mongoose.Schema.Types.Mixed,
+  userChatId: mongoose.Schema.Types.Mixed,
+  userName: { type: String, default: '' },
+  userUsername: { type: String, default: '' },
+  botToken: { type: String, default: '' },
+  channelTag: { type: String, default: 'default' },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const Channel = mongoose.models.Channel || mongoose.model('Channel', ChannelSchema);
+const Lead = mongoose.models.Lead || mongoose.model('Lead', LeadSchema);
+const Message = mongoose.models.Message || mongoose.model('Message', MessageSchema);
+const Admin = mongoose.models.Admin || mongoose.model('Admin', AdminSchema);
+const Topic = mongoose.models.Topic || mongoose.model('Topic', TopicSchema);
+
+// ─── JSON Fallback ────────────────────────────────────────────────────────────
 const DATA_DIR = path.join(__dirname, 'data');
 const CHANNELS_FILE = path.join(DATA_DIR, 'channels.json');
 const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
@@ -8,50 +101,7 @@ const MESSAGES_FILE = path.join(DATA_DIR, 'messages.json');
 const ADMIN_FILE = path.join(DATA_DIR, 'admin.json');
 const TOPICS_FILE = path.join(DATA_DIR, 'topics.json');
 
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// In-memory mapping of Admin Message ID -> User Target
-const replyMap = new Map();
-
-// Default channels template
-const DEFAULT_CHANNELS = [
-  {
-    tag: 'cric1',
-    name: 'Cricket Channel 1 (VIP Predictions)',
-    link: 'https://t.me/your_cricket_channel_1',
-    buttonText: '🏏 Join Cricket Channel 1 (VIP)',
-    welcomeMessage: '🏏 **Welcome to Cricket VIP Predictions!**\n\n🔥 Today\'s Toss & Match Winner analysis is ready.\n\n👇 You can send your message directly here to chat with us:',
-    pixelId: '',
-    accessToken: '',
-    botToken: '',
-    createdAt: new Date().toISOString()
-  },
-  {
-    tag: 'cric2',
-    name: 'Cricket Channel 2 (Toss & Session)',
-    link: 'https://t.me/your_cricket_channel_2',
-    buttonText: '⚡ Join Toss & Session VIP',
-    welcomeMessage: '⚡ **Welcome to Toss & Session Kings!**\n\n🎯 100% Accurate Toss Updates & Live Sessions.\n\n👇 Send your question or message directly here:',
-    pixelId: '',
-    accessToken: '',
-    botToken: '',
-    createdAt: new Date().toISOString()
-  },
-  {
-    tag: 'cric3',
-    name: 'Cricket Channel 3 (Jackpot Match)',
-    link: 'https://t.me/your_cricket_channel_3',
-    buttonText: '🏆 Join Jackpot Cricket Club',
-    welcomeMessage: '🏆 **Welcome to Jackpot Match Special!**\n\n💰 High profit match reports and live tips.\n\n👇 Send a message right here to talk to our expert team:',
-    pixelId: '',
-    accessToken: '',
-    botToken: '',
-    createdAt: new Date().toISOString()
-  }
-];
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 function readJsonFile(filePath, defaultValue = []) {
   try {
@@ -60,9 +110,8 @@ function readJsonFile(filePath, defaultValue = []) {
       return defaultValue;
     }
     const data = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(data || '[]');
+    return JSON.parse(data || JSON.stringify(defaultValue));
   } catch (err) {
-    console.error(`Error reading ${filePath}:`, err.message);
     return defaultValue;
   }
 }
@@ -72,40 +121,42 @@ function writeJsonFile(filePath, data) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
     return true;
   } catch (err) {
-    console.error(`Error writing ${filePath}:`, err.message);
     return false;
   }
 }
 
-// Initialize files if empty
-if (!fs.existsSync(CHANNELS_FILE)) writeJsonFile(CHANNELS_FILE, DEFAULT_CHANNELS);
-if (!fs.existsSync(LEADS_FILE)) writeJsonFile(LEADS_FILE, []);
-if (!fs.existsSync(MESSAGES_FILE)) writeJsonFile(MESSAGES_FILE, []);
-if (!fs.existsSync(ADMIN_FILE)) writeJsonFile(ADMIN_FILE, { adminChatId: null, adminUsername: null, isForum: false });
-if (!fs.existsSync(TOPICS_FILE)) writeJsonFile(TOPICS_FILE, {});
+// ─── In-Memory Reply Map ──────────────────────────────────────────────────────
+const replyMap = new Map();
 
+// ─── DB Object ───────────────────────────────────────────────────────────────
 const db = {
-  // Admin Configuration
+
   getAdminConfig() {
     const config = readJsonFile(ADMIN_FILE, { adminChatId: null, adminUsername: null, isForum: false });
-    if (!config.adminChatId && process.env.ADMIN_CHAT_ID) {
-      config.adminChatId = process.env.ADMIN_CHAT_ID;
+    if (!config.adminChatId && process.env.ADMIN_CHAT_ID) config.adminChatId = process.env.ADMIN_CHAT_ID;
+    if (isConnected) {
+      Admin.findOne({ key: 'main' }).then(admin => {
+        if (admin && admin.adminChatId) writeJsonFile(ADMIN_FILE, admin.toObject());
+      }).catch(() => {});
     }
     return config;
   },
 
-  setAdminChatId(chatId, username = '', isForum = false) {
-    const config = {
+  async setAdminChatId(chatId, username = '', isForum = false) {
+    await connectDB();
+    const data = {
       adminChatId: String(chatId),
       adminUsername: username,
       isForum: isForum || String(chatId).startsWith('-100'),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date()
     };
-    writeJsonFile(ADMIN_FILE, config);
-    return config;
+    if (isConnected) {
+      await Admin.findOneAndUpdate({ key: 'main' }, data, { upsert: true, new: true });
+    }
+    writeJsonFile(ADMIN_FILE, { ...data, key: 'main' });
+    return data;
   },
 
-  // Forum Topics Management (1 Topic per User)
   getUserTopic(userId) {
     const topics = readJsonFile(TOPICS_FILE, {});
     return topics[String(userId)] || null;
@@ -114,32 +165,34 @@ const db = {
   getUserByTopic(threadId) {
     const topics = readJsonFile(TOPICS_FILE, {});
     for (const [userId, data] of Object.entries(topics)) {
-      if (String(data.threadId) === String(threadId)) {
-        return { userId, ...data };
-      }
+      if (String(data.threadId) === String(threadId)) return { userId, ...data };
     }
     return null;
   },
 
-  saveUserTopic(userId, data) {
-    const topics = readJsonFile(TOPICS_FILE, {});
-    topics[String(userId)] = {
+  async saveUserTopic(userId, data) {
+    await connectDB();
+    const record = {
+      userId: String(userId),
       threadId: data.threadId,
       userChatId: data.userChatId,
       userName: data.userName || '',
       userUsername: data.userUsername || '',
       botToken: data.botToken || '',
       channelTag: data.channelTag || 'default',
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date()
     };
+    if (isConnected) {
+      await Topic.findOneAndUpdate({ userId: String(userId) }, record, { upsert: true, new: true });
+    }
+    const topics = readJsonFile(TOPICS_FILE, {});
+    topics[String(userId)] = record;
     writeJsonFile(TOPICS_FILE, topics);
-    return topics[String(userId)];
+    return record;
   },
 
-  // Reply Mapping (Admin Forward Msg ID -> User Chat ID & Bot Token)
   saveReplyMapping(adminMsgId, data) {
     replyMap.set(String(adminMsgId), data);
-    // Keep map size reasonable
     if (replyMap.size > 2000) {
       const firstKey = replyMap.keys().next().value;
       replyMap.delete(firstKey);
@@ -150,36 +203,14 @@ const db = {
     return replyMap.get(String(adminMsgId)) || null;
   },
 
-  // Channels
   getChannels() {
-    const channels = readJsonFile(CHANNELS_FILE, DEFAULT_CHANNELS);
-    let modified = false;
-    for (const c of channels) {
-      if (c.link && c.link.includes('manish_nagda')) {
-        c.link = 'https://t.me/sparkspires';
-        modified = true;
-      }
-      if (!c.botUsername || c.botUsername === 'manish_lead_bot') {
-        c.botUsername = 'southboookbot';
-        modified = true;
-      }
-      if (!c.botToken || c.botToken.includes('8827730708')) {
-        c.botToken = '8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY';
-        modified = true;
-      }
-      if (!c.pixelId) {
-        c.pixelId = '3572072086292080';
-        modified = true;
-      }
-      if (!c.accessToken) {
-        c.accessToken = 'EAAaQv2w9ac0BSOxieaFegNLZCtvkrSCNJ9ABKbTvoiWMyJmXvv5zTNMZAZCIRAUUWQFuFb4twMZCfipshMAlHHroMHPM5u31In9qrtc7MFfPDblZCZCGPvMocqld5yzY4sOiXcywZAJBcy3bJzAxLBb75lD7v3JKLRWiCwTAV0JqKfrUFpZCTxZAB43MRGV8ndgZD';
-        modified = true;
-      }
+    const jsonChannels = readJsonFile(CHANNELS_FILE, []);
+    if (isConnected) {
+      Channel.find({}).then(dbChannels => {
+        if (dbChannels.length > 0) writeJsonFile(CHANNELS_FILE, dbChannels.map(c => c.toObject()));
+      }).catch(() => {});
     }
-    if (modified) {
-      writeJsonFile(CHANNELS_FILE, channels);
-    }
-    return channels;
+    return jsonChannels;
   },
 
   getChannelByTag(tag) {
@@ -188,80 +219,118 @@ const db = {
     return channels.find(c => c.tag.toLowerCase() === tag.trim().toLowerCase()) || null;
   },
 
-  saveChannel(channelData) {
-    const channels = this.getChannels();
+  async saveChannel(channelData) {
+    await connectDB();
     const cleanTag = channelData.tag.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-    
-    const existingIndex = channels.findIndex(c => c.tag.toLowerCase() === cleanTag);
-    if (existingIndex >= 0) {
-      channels[existingIndex] = {
-        ...channels[existingIndex],
-        name: channelData.name || channels[existingIndex].name,
-        botUsername: channelData.botUsername !== undefined ? channelData.botUsername : (channels[existingIndex].botUsername || ''),
-        link: channelData.link || channels[existingIndex].link,
-        buttonText: channelData.buttonText || channels[existingIndex].buttonText,
-        welcomeMessage: channelData.welcomeMessage || channels[existingIndex].welcomeMessage,
-        pixelId: channelData.pixelId !== undefined ? channelData.pixelId : channels[existingIndex].pixelId,
-        accessToken: channelData.accessToken !== undefined ? channelData.accessToken : channels[existingIndex].accessToken,
-        botToken: channelData.botToken !== undefined ? channelData.botToken : channels[existingIndex].botToken,
-        updatedAt: new Date().toISOString()
-      };
-      writeJsonFile(CHANNELS_FILE, channels);
-      return channels[existingIndex];
-    }
-
-    const newChannel = {
+    const record = {
       tag: cleanTag,
       name: channelData.name || `Channel ${cleanTag}`,
-      botUsername: channelData.botUsername || '',
+      botUsername: channelData.botUsername !== undefined ? channelData.botUsername : '',
       link: channelData.link || 'https://t.me/',
       buttonText: channelData.buttonText || `Join ${channelData.name || cleanTag}`,
-      welcomeMessage: channelData.welcomeMessage || `Welcome! Send a message here to chat directly:`,
+      welcomeMessage: channelData.welcomeMessage || 'Welcome! Send a message here to chat directly:',
       pixelId: channelData.pixelId ? channelData.pixelId.trim() : '',
       accessToken: channelData.accessToken ? channelData.accessToken.trim() : '',
       botToken: channelData.botToken ? channelData.botToken.trim() : '',
-      createdAt: new Date().toISOString()
+      updatedAt: new Date()
     };
-    channels.push(newChannel);
 
+    if (isConnected) {
+      const ch = await Channel.findOneAndUpdate({ tag: cleanTag }, record, { upsert: true, new: true });
+      const all = await Channel.find({});
+      writeJsonFile(CHANNELS_FILE, all.map(c => c.toObject()));
+      return ch.toObject();
+    }
+
+    const channels = readJsonFile(CHANNELS_FILE, []);
+    const idx = channels.findIndex(c => c.tag.toLowerCase() === cleanTag);
+    if (idx >= 0) {
+      channels[idx] = { ...channels[idx], ...record };
+      writeJsonFile(CHANNELS_FILE, channels);
+      return channels[idx];
+    }
+    record.createdAt = new Date().toISOString();
+    channels.push(record);
     writeJsonFile(CHANNELS_FILE, channels);
-    return newChannel;
+    return record;
   },
 
-  deleteChannel(tag) {
-    const channels = this.getChannels();
-    const filtered = channels.filter(c => c.tag.toLowerCase() !== tag.trim().toLowerCase());
-    writeJsonFile(CHANNELS_FILE, filtered);
+  async deleteChannel(tag) {
+    await connectDB();
+    if (isConnected) {
+      await Channel.deleteOne({ tag: tag.trim().toLowerCase() });
+      const all = await Channel.find({});
+      writeJsonFile(CHANNELS_FILE, all.map(c => c.toObject()));
+    } else {
+      const channels = readJsonFile(CHANNELS_FILE, []);
+      writeJsonFile(CHANNELS_FILE, channels.filter(c => c.tag.toLowerCase() !== tag.trim().toLowerCase()));
+    }
     return true;
   },
 
-  // Leads (1 Unique Lead per User, Sorted by Latest Activity)
   getLeads(limit = 100) {
+    if (isConnected) {
+      return readJsonFile(LEADS_FILE, []).slice(0, limit);
+    }
     const leads = readJsonFile(LEADS_FILE, []);
     const uniqueMap = new Map();
-    // Keep the most recent record per userId
     for (let i = leads.length - 1; i >= 0; i--) {
       const l = leads[i];
       const uid = String(l.userId);
-      if (!uniqueMap.has(uid)) {
-        uniqueMap.set(uid, l);
-      }
+      if (!uniqueMap.has(uid)) uniqueMap.set(uid, l);
     }
     const list = Array.from(uniqueMap.values());
-    list.sort((a, b) => {
-      const timeA = new Date(a.lastActiveAt || a.updatedAt || a.createdAt).getTime();
-      const timeB = new Date(b.lastActiveAt || b.updatedAt || b.createdAt).getTime();
-      return timeB - timeA;
-    });
+    list.sort((a, b) => new Date(b.lastActiveAt || b.createdAt) - new Date(a.lastActiveAt || a.createdAt));
     return list.slice(0, limit);
   },
 
-  addLead(leadData) {
-    const leads = readJsonFile(LEADS_FILE, []);
-    const existingIndex = leads.findIndex(l => String(l.userId) === String(leadData.userId));
+  async getLeadsAsync(limit = 100) {
+    await connectDB();
+    if (isConnected) {
+      const leads = await Lead.find({}).sort({ lastActiveAt: -1 }).limit(limit);
+      const list = leads.map(l => l.toObject());
+      writeJsonFile(LEADS_FILE, list);
+      return list;
+    }
+    return this.getLeads(limit);
+  },
 
+  async addLead(leadData) {
+    await connectDB();
+    const uid = String(leadData.userId);
+    const now = new Date();
+
+    if (isConnected) {
+      const update = {
+        firstName: leadData.firstName || '',
+        lastName: leadData.lastName || '',
+        username: leadData.username || '',
+        languageCode: leadData.languageCode || 'en',
+        lastActiveAt: now
+      };
+      if (leadData.channelTag && leadData.channelTag !== 'default') {
+        update.channelTag = leadData.channelTag;
+        update.channelName = leadData.channelName || '';
+        update.rawParam = leadData.rawParam || '';
+      }
+      if (leadData.capiStatus && leadData.capiStatus !== 'skipped') {
+        update.capiStatus = leadData.capiStatus;
+        update.capiTraceId = leadData.capiTraceId || '';
+        update.capiError = leadData.capiError || null;
+      }
+      const lead = await Lead.findOneAndUpdate(
+        { userId: uid },
+        { $set: update, $setOnInsert: { createdAt: now, channelTag: leadData.channelTag || 'default', channelName: leadData.channelName || 'Default', rawParam: leadData.rawParam || '', capiStatus: leadData.capiStatus || 'pending' } },
+        { upsert: true, new: true }
+      );
+      const all = await Lead.find({}).sort({ lastActiveAt: -1 });
+      writeJsonFile(LEADS_FILE, all.map(l => l.toObject()));
+      return lead.toObject();
+    }
+
+    const leads = readJsonFile(LEADS_FILE, []);
+    const existingIndex = leads.findIndex(l => String(l.userId) === uid);
     if (existingIndex !== -1) {
-      // Update existing lead record rather than duplicating
       const existing = leads[existingIndex];
       existing.firstName = leadData.firstName || existing.firstName;
       existing.lastName = leadData.lastName || existing.lastName;
@@ -276,7 +345,7 @@ const db = {
         existing.capiTraceId = leadData.capiTraceId || existing.capiTraceId;
         existing.capiError = leadData.capiError;
       }
-      existing.lastActiveAt = new Date().toISOString();
+      existing.lastActiveAt = now.toISOString();
       writeJsonFile(LEADS_FILE, leads);
       return existing;
     }
@@ -294,64 +363,74 @@ const db = {
       capiStatus: leadData.capiStatus || 'pending',
       capiTraceId: leadData.capiTraceId || '',
       capiError: leadData.capiError || null,
-      createdAt: new Date().toISOString()
+      lastActiveAt: now.toISOString(),
+      createdAt: now.toISOString()
     };
-
     leads.push(newLead);
     writeJsonFile(LEADS_FILE, leads);
     return newLead;
   },
 
-  // Chat Messages
-  saveMessage(msgData) {
-    const messages = readJsonFile(MESSAGES_FILE, []);
+  async saveMessage(msgData) {
+    await connectDB();
     const record = {
-      id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-      userId: msgData.userId,
+      userId: String(msgData.userId),
       userChatId: msgData.userChatId,
-      sender: msgData.sender, // 'user' or 'admin'
+      sender: msgData.sender,
       userName: msgData.userName || '',
       userUsername: msgData.userUsername || '',
       text: msgData.text || '',
       type: msgData.type || 'text',
       botToken: msgData.botToken || '',
       channelTag: msgData.channelTag || 'default',
-      createdAt: new Date().toISOString()
+      read: false,
+      createdAt: new Date()
     };
-    messages.push(record);
-    // Keep max 5000 messages in file
-    if (messages.length > 5000) {
-      messages.splice(0, messages.length - 5000);
+    if (isConnected) {
+      const msg = await Message.create(record);
+      const recent = await Message.find({}).sort({ createdAt: -1 }).limit(500);
+      writeJsonFile(MESSAGES_FILE, recent.map(m => m.toObject()).reverse());
+      return msg.toObject();
     }
+    const messages = readJsonFile(MESSAGES_FILE, []);
+    record.id = 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    messages.push(record);
+    if (messages.length > 5000) messages.splice(0, messages.length - 5000);
     writeJsonFile(MESSAGES_FILE, messages);
     return record;
   },
 
-  getMessagesByUser(userId, limit = 100) {
+  async getMessagesByUser(userId, limit = 100) {
+    await connectDB();
+    if (isConnected) {
+      const msgs = await Message.find({ userId: String(userId) }).sort({ createdAt: 1 }).limit(limit);
+      return msgs.map(m => m.toObject());
+    }
     const messages = readJsonFile(MESSAGES_FILE, []);
-    return messages
-      .filter(m => String(m.userId) === String(userId))
-      .slice(-limit);
+    return messages.filter(m => String(m.userId) === String(userId)).slice(-limit);
   },
 
-  getConversations() {
-    const messages = readJsonFile(MESSAGES_FILE, []);
-    const leads = readJsonFile(LEADS_FILE, []);
+  async getConversations() {
+    await connectDB();
     const admin = this.getAdminConfig();
     const adminId = admin.adminChatId ? String(admin.adminChatId) : null;
+    const EXCLUDE = new Set(['5212375937', '-1004309264544', adminId].filter(Boolean));
+
+    let leads = [], messages = [];
+    if (isConnected) {
+      leads = (await Lead.find({}).sort({ lastActiveAt: -1 })).map(l => l.toObject());
+      messages = (await Message.find({}).sort({ createdAt: 1 })).map(m => m.toObject());
+    } else {
+      leads = readJsonFile(LEADS_FILE, []);
+      messages = readJsonFile(MESSAGES_FILE, []);
+    }
 
     const userMap = new Map();
 
-    // Index from leads first
     for (const lead of leads) {
       const uid = String(lead.userId);
-      // Exclude Admin from customer list
-      if (adminId && (uid === adminId || uid === '5212375937' || uid === '-1004309264544')) {
-        continue;
-      }
-
+      if (EXCLUDE.has(uid)) continue;
       const displayName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || (lead.username ? `@${lead.username}` : `User ${lead.userId}`);
-
       userMap.set(uid, {
         userId: lead.userId,
         userChatId: lead.userId,
@@ -367,14 +446,9 @@ const db = {
       });
     }
 
-    // Overlay messages
     for (const msg of messages) {
       const uid = String(msg.userId);
-      // Exclude Admin from customer list
-      if (adminId && (uid === adminId || uid === '5212375937' || uid === '-1004309264544')) {
-        continue;
-      }
-
+      if (EXCLUDE.has(uid)) continue;
       const existing = userMap.get(uid) || {
         userId: msg.userId,
         userChatId: msg.userChatId || msg.userId,
@@ -392,24 +466,13 @@ const db = {
       existing.lastMessage = msg.text || '[Media]';
       existing.lastMessageSender = msg.sender;
       existing.lastMessageTime = msg.createdAt;
-
-      // Only update userName and userUsername if message is from the customer
       if (msg.sender === 'user') {
-        if (msg.userName && msg.userName !== 'Admin' && msg.userName !== 'Admin (Web Panel)') {
-          existing.userName = msg.userName;
-        }
-        if (msg.userUsername) {
-          existing.userUsername = msg.userUsername;
-        }
+        if (msg.userName && msg.userName !== 'Admin') existing.userName = msg.userName;
+        if (msg.userUsername) existing.userUsername = msg.userUsername;
       }
-
       if (msg.botToken) existing.botToken = msg.botToken;
       if (msg.userChatId) existing.userChatId = msg.userChatId;
-
-      if (msg.sender === 'user' && !msg.read) {
-        existing.unreadCount = (existing.unreadCount || 0) + 1;
-      }
-
+      if (msg.sender === 'user' && !msg.read) existing.unreadCount = (existing.unreadCount || 0) + 1;
       userMap.set(uid, existing);
     }
 
@@ -418,7 +481,11 @@ const db = {
       .sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
   },
 
-  markMessagesRead(userId) {
+  async markMessagesRead(userId) {
+    await connectDB();
+    if (isConnected) {
+      await Message.updateMany({ userId: String(userId), sender: 'user', read: false }, { read: true });
+    }
     const messages = readJsonFile(MESSAGES_FILE, []);
     let changed = false;
     for (const msg of messages) {
@@ -427,51 +494,51 @@ const db = {
         changed = true;
       }
     }
-    if (changed) {
-      writeJsonFile(MESSAGES_FILE, messages);
-    }
+    if (changed) writeJsonFile(MESSAGES_FILE, messages);
     return true;
   },
 
-  // Stats
   getStats() {
     const leads = readJsonFile(LEADS_FILE, []);
     const channels = this.getChannels();
     const admin = this.getAdminConfig();
-
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const sevenDaysAgo = startOfToday - 7 * 24 * 60 * 60 * 1000;
-
-    let todayLeads = 0;
-    let weekLeads = 0;
-    let successfulCapi = 0;
-    let failedCapi = 0;
-
+    let todayLeads = 0, successfulCapi = 0, failedCapi = 0;
     const channelCounts = {};
-
     for (const lead of leads) {
       const time = new Date(lead.createdAt).getTime();
       if (time >= startOfToday) todayLeads++;
-      if (time >= sevenDaysAgo) weekLeads++;
-
       if (lead.capiStatus === 'success') successfulCapi++;
       if (lead.capiStatus === 'failed') failedCapi++;
-
       const ch = lead.channelTag || 'other';
       channelCounts[ch] = (channelCounts[ch] || 0) + 1;
     }
+    return { totalLeads: leads.length, todayLeads, successfulCapi, failedCapi, totalChannels: channels.length, channelCounts, adminConnected: !!admin.adminChatId };
+  },
 
-    return {
-      totalLeads: leads.length,
-      todayLeads,
-      weekLeads,
-      successfulCapi,
-      failedCapi,
-      totalChannels: channels.length,
-      channelCounts,
-      adminConnected: !!admin.adminChatId
-    };
+  async getStatsAsync() {
+    await connectDB();
+    if (isConnected) {
+      const leads = (await Lead.find({})).map(l => l.toObject());
+      writeJsonFile(LEADS_FILE, leads);
+      const channels = this.getChannels();
+      const admin = this.getAdminConfig();
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      let todayLeads = 0, successfulCapi = 0, failedCapi = 0;
+      const channelCounts = {};
+      for (const lead of leads) {
+        const time = new Date(lead.createdAt).getTime();
+        if (time >= startOfToday) todayLeads++;
+        if (lead.capiStatus === 'success') successfulCapi++;
+        if (lead.capiStatus === 'failed') failedCapi++;
+        const ch = lead.channelTag || 'other';
+        channelCounts[ch] = (channelCounts[ch] || 0) + 1;
+      }
+      return { totalLeads: leads.length, todayLeads, successfulCapi, failedCapi, totalChannels: channels.length, channelCounts, adminConnected: !!admin.adminChatId };
+    }
+    return this.getStats();
   }
 };
 

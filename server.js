@@ -93,18 +93,18 @@ app.get('/api/config', (req, res) => {
 });
 
 // 1. Get Dashboard Stats
-app.get('/api/stats', (req, res) => {
-  const stats = db.getStats();
+app.get('/api/stats', async (req, res) => {
+  const stats = await db.getStatsAsync();
   res.json({ success: true, data: stats });
 });
 
 // 2. Get Leads (with optional search/filter)
-app.get('/api/leads', (req, res) => {
+app.get('/api/leads', async (req, res) => {
   const limit = parseInt(req.query.limit) || 150;
   const channel = req.query.channel;
   const search = (req.query.search || '').toLowerCase();
 
-  let leads = db.getLeads(500);
+  let leads = await db.getLeadsAsync(500);
 
   if (channel && channel !== 'all') {
     leads = leads.filter(l => l.channelTag === channel);
@@ -128,13 +128,13 @@ app.get('/api/leads', (req, res) => {
 });
 
 // 3. Get Channels
-app.get('/api/channels', (req, res) => {
-  const channels = db.getChannels();
+app.get('/api/channels', async (req, res) => {
+  const channels = await db.getChannelsAsync();
   res.json({ success: true, data: channels });
 });
 
 // 4. Create / Update Channel
-app.post('/api/channels', (req, res) => {
+app.post('/api/channels', async (req, res) => {
   const { tag, name, link, buttonText, welcomeMessage, pixelId, accessToken, botToken } = req.body;
 
   if (!tag || tag.trim() === '') {
@@ -150,7 +150,7 @@ app.post('/api/channels', (req, res) => {
     cleanLink = `https://t.me/${cleanLink.replace(/^@/, '')}`;
   }
 
-  const saved = db.saveChannel({
+  const saved = await db.saveChannel({
     tag,
     name: name || `Account ${tag}`,
     botUsername: req.body.botUsername ? req.body.botUsername.replace(/^@/, '').trim() : '',
@@ -171,9 +171,9 @@ app.post('/api/channels', (req, res) => {
 });
 
 // 5. Delete Channel
-app.delete('/api/channels/:tag', (req, res) => {
+app.delete('/api/channels/:tag', async (req, res) => {
   const { tag } = req.params;
-  db.deleteChannel(tag);
+  await db.deleteChannel(tag);
   res.json({ success: true, message: `Channel ${tag} deleted` });
 });
 

@@ -523,7 +523,7 @@ function renderMessagesStream(messages) {
   const container = document.getElementById('chatMessagesContainer');
   if (!container) return;
 
-  const currentKey = messages.map(m => m.id + (m.createdAt || '')).join('|');
+  const currentKey = messages.map(m => (m._id || m.id || '') + (m.createdAt || '') + (m.text || '')).join('|');
   if (currentKey && currentKey === lastRenderedMessagesKey && container.children.length > 0) {
     return; // Exact same messages, skip re-render to prevent blinking
   }

@@ -637,10 +637,9 @@ const db = {
     let filter = {};
     const key = String(convIdOrUserId);
 
-    let matchedTag = null, matchedPrefix = null, uid = key;
     if (key.includes('_')) {
       const parts = key.split('_');
-      uid = parts[0];
+      const uid = parts[0];
       const botKey = parts[1];
 
       let channels = [];
@@ -655,8 +654,8 @@ const db = {
         (c.tag && c.tag.toLowerCase() === botKey.toLowerCase()) || 
         (c.botToken && c.botToken.startsWith(botKey))
       );
-      matchedTag = matchedChan ? matchedChan.tag : botKey;
-      matchedPrefix = matchedChan && matchedChan.botToken ? matchedChan.botToken.split(':')[0] : botKey;
+      const matchedTag = matchedChan ? matchedChan.tag : botKey;
+      const matchedPrefix = matchedChan && matchedChan.botToken ? matchedChan.botToken.split(':')[0] : botKey;
 
       const orConditions = [
         { channelTag: matchedTag },
@@ -672,23 +671,16 @@ const db = {
         orConditions.push({ channelTag: 'default' });
         orConditions.push({ channelTag: null });
         orConditions.push({ channelTag: '' });
+        orConditions.push({ channelTag: { $exists: false } });
       }
 
       filter = {
-        $or: [
-          { userId: String(uid) },
-          { userId: Number(uid) || String(uid) }
-        ],
-        $and: [
-          { $or: orConditions }
-        ]
+        userId: String(uid),
+        $or: orConditions
       };
     } else {
       filter = {
-        $or: [
-          { userId: String(key) },
-          { userId: Number(key) || String(key) }
-        ]
+        userId: String(key)
       };
     }
 
@@ -706,16 +698,24 @@ const db = {
       const parts = key.split('_');
       const u = parts[0];
       const botKey = parts[1];
+      const channels = this.getChannels();
+      const matchedChan = channels.find(c => 
+        (c.tag && c.tag.toLowerCase() === botKey.toLowerCase()) || 
+        (c.botToken && c.botToken.startsWith(botKey))
+      );
+      const matchedTag = matchedChan ? matchedChan.tag : botKey;
+      const matchedPrefix = matchedChan && matchedChan.botToken ? matchedChan.botToken.split(':')[0] : botKey;
+
       return messages.filter(m =>
-        (String(m.userId) === u || Number(m.userId) === Number(u)) &&
+        String(m.userId) === u &&
         (m.channelTag === matchedTag ||
          (matchedPrefix && m.botToken && m.botToken.startsWith(matchedPrefix)) ||
          (botKey && m.botToken && m.botToken.startsWith(botKey)) ||
          m.channelTag === botKey ||
-         ((matchedTag === 'meta_ad' || matchedTag === 'default') && (!m.channelTag || m.channelTag === 'default')))
+         ((matchedTag === 'meta_ad' || matchedTag === 'default') && (!m.channelTag || m.channelTag === 'default' || m.channelTag === 'meta_ad')))
       ).slice(-limit);
     }
-    return messages.filter(m => String(m.userId) === key || Number(m.userId) === Number(key)).slice(-limit);
+    return messages.filter(m => String(m.userId) === key).slice(-limit);
   },
 
   getStats() {

@@ -501,7 +501,7 @@ function startBotInstance(token, specificChannel = null) {
   }
 }
 
-function initBot() {
+async function initBot() {
   const masterTokens = [
     process.env.TELEGRAM_BOT_TOKEN,
     '8822712824:AAGTvplfF7sj2JVZjzL6KF382_mHkHAOyCY',
@@ -514,11 +514,15 @@ function initBot() {
     }
   }
 
-  const channels = db.getChannels();
-  for (const ch of channels) {
-    if (ch.botToken && ch.botToken.trim() !== '') {
-      startBotInstance(ch.botToken.trim(), ch);
+  try {
+    const channels = await db.getChannelsAsync();
+    for (const ch of channels) {
+      if (ch.botToken && ch.botToken.trim() !== '') {
+        startBotInstance(ch.botToken.trim(), ch);
+      }
     }
+  } catch (err) {
+    console.error('Error loading channel bots on startup:', err.message);
   }
 }
 

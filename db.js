@@ -207,10 +207,38 @@ const db = {
     const jsonChannels = readJsonFile(CHANNELS_FILE, []);
     if (isConnected) {
       Channel.find({}).then(dbChannels => {
-        if (dbChannels.length > 0) writeJsonFile(CHANNELS_FILE, dbChannels.map(c => c.toObject()));
+        if (dbChannels.length > 0) {
+          writeJsonFile(CHANNELS_FILE, dbChannels.map(c => c.toObject()));
+        } else if (jsonChannels.length > 0) {
+          // Seed MongoDB from JSON if empty
+          Promise.all(jsonChannels.map(ch =>
+            Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, new: true })
+          )).catch(() => {});
+        }
       }).catch(() => {});
     }
     return jsonChannels;
+  },
+
+  async getChannelsAsync() {
+    await connectDB();
+    if (isConnected) {
+      let dbChannels = await Channel.find({});
+      if (dbChannels.length === 0) {
+        // Seed from JSON
+        const jsonChannels = readJsonFile(CHANNELS_FILE, []);
+        if (jsonChannels.length > 0) {
+          for (const ch of jsonChannels) {
+            await Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, new: true });
+          }
+          dbChannels = await Channel.find({});
+        }
+      }
+      const list = dbChannels.map(c => c.toObject());
+      if (list.length > 0) writeJsonFile(CHANNELS_FILE, list);
+      return list;
+    }
+    return readJsonFile(CHANNELS_FILE, []);
   },
 
   getChannelByTag(tag) {
@@ -301,27 +329,27 @@ const db = {
     const now = new Date();
 
     if (isConnected) {
+      // Build complete update - all fields in $set to avoid $setOnInsert conflict
       const update = {
         firstName: leadData.firstName || '',
         lastName: leadData.lastName || '',
         username: leadData.username || '',
         languageCode: leadData.languageCode || 'en',
-        lastActiveAt: now
+        lastActiveAt: now,
+        channelTag: leadData.channelTag || 'default',
+        channelName: leadData.channelName || 'Default / Master',
+        rawParam: leadData.rawParam || '',
+        capiStatus: leadData.capiStatus || 'pending',
+        capiTraceId: leadData.capiTraceId || '',
+        capiError: leadData.capiError || null
       };
-      if (leadData.channelTag && leadData.channelTag !== 'default') {
-        update.channelTag = leadData.channelTag;
-        update.channelName = leadData.channelName || '';
-        update.rawParam = leadData.rawParam || '';
-      }
-      if (leadData.capiStatus && leadData.capiStatus !== 'skipped') {
-        update.capiStatus = leadData.capiStatus;
-        update.capiTraceId = leadData.capiTraceId || '';
-        update.capiError = leadData.capiError || null;
-      }
       const lead = await Lead.findOneAndUpdate(
         { userId: uid },
-        { $set: update, $setOnInsert: { createdAt: now, channelTag: leadData.channelTag || 'default', channelName: leadData.channelName || 'Default', rawParam: leadData.rawParam || '', capiStatus: leadData.capiStatus || 'pending' } },
-        { upsert: true, new: true }
+        {
+          $set: update,
+          $setOnInsert: { createdAt: now }
+        },
+        { upsert: true, returnDocument: 'after' }
       );
       const all = await Lead.find({}).sort({ lastActiveAt: -1 });
       writeJsonFile(LEADS_FILE, all.map(l => l.toObject()));

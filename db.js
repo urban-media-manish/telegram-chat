@@ -55,7 +55,7 @@ const ChannelSchema = new mongoose.Schema({
 });
 
 const LeadSchema = new mongoose.Schema({
-  userId: { type: String, required: true, unique: true },
+  userId: { type: String, required: true },
   firstName: { type: String, default: '' },
   lastName: { type: String, default: '' },
   username: { type: String, default: '' },
@@ -69,6 +69,7 @@ const LeadSchema = new mongoose.Schema({
   lastActiveAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now }
 });
+LeadSchema.index({ userId: 1, channelTag: 1 }, { unique: true });
 
 const MessageSchema = new mongoose.Schema({
   userId: String,
@@ -325,7 +326,7 @@ const db = {
     const uniqueMap = new Map();
     for (let i = leads.length - 1; i >= 0; i--) {
       const l = leads[i];
-      const uid = String(l.userId);
+      const uid = String(l.userId) + '_' + (l.channelTag || 'default');
       if (!uniqueMap.has(uid)) uniqueMap.set(uid, l);
     }
     const list = Array.from(uniqueMap.values());
@@ -349,6 +350,7 @@ const db = {
 
   async addLead(leadData) {
     const uid = String(leadData.userId);
+    const tag = leadData.channelTag || 'default';
     const now = new Date();
 
     try {
@@ -359,7 +361,7 @@ const db = {
           username: leadData.username || '',
           languageCode: leadData.languageCode || 'en',
           lastActiveAt: now,
-          channelTag: leadData.channelTag || 'default',
+          channelTag: tag,
           channelName: leadData.channelName || 'Default / Master',
           rawParam: leadData.rawParam || '',
           capiStatus: leadData.capiStatus || 'pending',
@@ -367,7 +369,7 @@ const db = {
           capiError: leadData.capiError || null
         };
         const lead = await Lead.findOneAndUpdate(
-          { userId: uid },
+          { userId: uid, channelTag: tag },
           {
             $set: update,
             $setOnInsert: { createdAt: now }
@@ -383,17 +385,15 @@ const db = {
     }
 
     const leads = readJsonFile(LEADS_FILE, []);
-    const existingIndex = leads.findIndex(l => String(l.userId) === uid);
+    const existingIndex = leads.findIndex(l => String(l.userId) === uid && (l.channelTag || 'default') === tag);
     if (existingIndex !== -1) {
       const existing = leads[existingIndex];
       existing.firstName = leadData.firstName || existing.firstName;
       existing.lastName = leadData.lastName || existing.lastName;
       existing.username = leadData.username || existing.username;
-      if (leadData.channelTag && leadData.channelTag !== 'default') {
-        existing.channelTag = leadData.channelTag;
-        existing.channelName = leadData.channelName || existing.channelName;
-        existing.rawParam = leadData.rawParam || existing.rawParam;
-      }
+      existing.channelTag = tag;
+      existing.channelName = leadData.channelName || existing.channelName;
+      existing.rawParam = leadData.rawParam || existing.rawParam;
       if (leadData.capiStatus && leadData.capiStatus !== 'skipped') {
         existing.capiStatus = leadData.capiStatus;
         existing.capiTraceId = leadData.capiTraceId || existing.capiTraceId;
@@ -411,7 +411,7 @@ const db = {
       lastName: leadData.lastName || '',
       username: leadData.username || '',
       languageCode: leadData.languageCode || 'en',
-      channelTag: leadData.channelTag || 'default',
+      channelTag: tag,
       channelName: leadData.channelName || 'Default / Master',
       rawParam: leadData.rawParam || '',
       capiStatus: leadData.capiStatus || 'pending',
@@ -699,6 +699,7 @@ const db = {
     const leads = readJsonFile(LEADS_FILE, []);
     const channels = this.getChannels();
     const admin = this.getAdminConfig();
+    const messages = readJsonFile(MESSAGES_FILE, []);
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     let todayLeads = 0, successfulCapi = 0, failedCapi = 0;
@@ -711,7 +712,25 @@ const db = {
       const ch = lead.channelTag || 'other';
       channelCounts[ch] = (channelCounts[ch] || 0) + 1;
     }
-    return { totalLeads: leads.length, todayLeads, successfulCapi, failedCapi, totalChannels: channels.length, channelCounts, adminConnected: !!admin.adminChatId };
+
+    const uniqueConvKeys = new Set();
+    for (const l of leads) {
+      uniqueConvKeys.add(`${l.userId}_${l.channelTag || 'default'}`);
+    }
+    for (const m of messages) {
+      uniqueConvKeys.add(`${m.userId}_${m.channelTag || 'default'}`);
+    }
+
+    return {
+      totalLeads: leads.length,
+      todayLeads,
+      successfulCapi,
+      failedCapi,
+      totalChannels: channels.length,
+      channelCounts,
+      adminConnected: !!admin.adminChatId,
+      activeChats: uniqueConvKeys.size
+    };
   },
 
   async getStatsAsync() {
@@ -733,7 +752,20 @@ const db = {
           const ch = lead.channelTag || 'other';
           channelCounts[ch] = (channelCounts[ch] || 0) + 1;
         }
-        return { totalLeads: leads.length, todayLeads, successfulCapi, failedCapi, totalChannels: channels.length, channelCounts, adminConnected: !!admin.adminChatId };
+
+        const convs = await this.getConversations();
+        const activeChats = convs.length;
+
+        return {
+          totalLeads: leads.length,
+          todayLeads,
+          successfulCapi,
+          failedCapi,
+          totalChannels: channels.length,
+          channelCounts,
+          adminConnected: !!admin.adminChatId,
+          activeChats
+        };
       }
     } catch (e) {
       console.warn('⚠️ getStatsAsync fallback to JSON:', e.message);

@@ -653,6 +653,11 @@ async function loadStats() {
       const totalEl = document.getElementById('kpiTotalLeads');
       if (totalEl) totalEl.textContent = stats.totalLeads || 0;
 
+      const activeChatsEl = document.getElementById('kpiActiveChats');
+      if (activeChatsEl && stats.activeChats !== undefined) {
+        activeChatsEl.textContent = stats.activeChats;
+      }
+
       const syncRateEl = document.getElementById('kpiSyncRate');
       const syncCountEl = document.getElementById('kpiSyncCount');
       if (syncRateEl && syncCountEl) {

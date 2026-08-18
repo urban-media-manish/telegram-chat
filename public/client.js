@@ -304,16 +304,11 @@ window.selectConversation = async function(convKey) {
 
   const emptyState = document.getElementById('chatEmptyState');
   const chatWindow = document.getElementById('chatWindow');
-  const sidebar = document.getElementById('chatSidebar');
-  const main = document.getElementById('chatMain');
 
   if (emptyState) emptyState.style.display = 'none';
   if (chatWindow) chatWindow.style.display = 'flex';
 
-  if (window.innerWidth <= 768) {
-    if (sidebar) sidebar.classList.add('mobile-hidden');
-    if (main) main.classList.add('mobile-active');
-  }
+  document.querySelector('.whatsapp-container')?.classList.add('mobile-chat-active');
 
   const avatarEl = document.getElementById('activeUserAvatar');
   const nameEl = document.getElementById('activeUserName');
@@ -759,10 +754,7 @@ function initChatEventListeners() {
   const btnBack = document.getElementById('btnBackToSidebar');
   if (btnBack) {
     btnBack.addEventListener('click', () => {
-      const sidebar = document.getElementById('chatSidebar');
-      const main = document.getElementById('chatMain');
-      if (sidebar) sidebar.classList.remove('mobile-hidden');
-      if (main) main.classList.remove('mobile-active');
+      document.querySelector('.whatsapp-container')?.classList.remove('mobile-chat-active');
       activeChatUserId = null;
       renderConversationsList(allConversations);
     });

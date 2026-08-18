@@ -1509,38 +1509,121 @@ body {
 
 /* Responsive Styles */
 @media (max-width: 768px) {
-  .dashboard-container { padding: 0.75rem; }
-  .navbar { padding: 0.85rem 1rem; }
+  .dashboard-container { padding: 0.5rem; }
+  .navbar { padding: 0.65rem 0.85rem; }
   .search-box { width: 100%; }
   .filters-bar { width: 100%; }
   .form-row { flex-direction: column; }
 
+  /* Client Portal Navbar on Mobile */
+  .client-navbar {
+    padding: 0.55rem 0.85rem !important;
+    gap: 0.4rem !important;
+  }
+  .client-navbar .brand-subtitle {
+    display: none !important;
+  }
+  .client-navbar .brand-title {
+    font-size: 1.02rem !important;
+  }
+  .client-navbar .nav-actions .btn {
+    padding: 0.32rem 0.55rem !important;
+    font-size: 0.75rem !important;
+  }
+  .client-navbar .live-indicator {
+    display: none !important;
+  }
+
+  /* Fullscreen WhatsApp on mobile */
+  .fullscreen-chat-body {
+    height: calc(100dvh - 54px) !important;
+    max-height: calc(100dvh - 54px) !important;
+  }
+
+  .fullscreen-whatsapp {
+    height: 100% !important;
+    min-height: 100% !important;
+    border-radius: 0 !important;
+    border: none !important;
+    display: flex !important;
+    flex-direction: row !important;
+  }
+
   .whatsapp-container {
-    height: calc(100vh - 180px);
-    min-height: 480px;
+    height: calc(100vh - 160px);
+    min-height: 440px;
   }
 
   .chat-sidebar {
-    width: 100%;
-    min-width: 100%;
+    width: 100% !important;
+    min-width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
   }
 
   .chat-main {
-    display: none;
-    width: 100%;
+    display: none !important;
+    width: 100% !important;
+    height: 100% !important;
   }
 
   /* When chat is open on mobile */
   .whatsapp-container.mobile-chat-active .chat-sidebar {
-    display: none;
+    display: none !important;
   }
 
   .whatsapp-container.mobile-chat-active .chat-main {
-    display: flex;
+    display: flex !important;
+    width: 100% !important;
+    height: 100% !important;
   }
 
   .btn-back-chat {
-    display: flex;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    color: #ffffff !important;
+    border-radius: 50% !important;
+    width: 36px !important;
+    height: 36px !important;
+    margin-right: 0.5rem !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+  }
+
+  .chat-window-header {
+    padding: 0.6rem 0.85rem !important;
+  }
+
+  .chat-user-meta {
+    font-size: 0.72rem !important;
+  }
+
+  .chat-header-actions {
+    display: none !important;
+  }
+
+  .chat-input-bar {
+    padding: 0.5rem 0.65rem !important;
+    gap: 0.4rem !important;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 8px)) !important;
+  }
+
+  .btn-chat-action {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 1.05rem !important;
+  }
+
+  .btn-send-message {
+    padding: 0.55rem 0.9rem !important;
+    font-size: 0.8rem !important;
+  }
+
+  .message-bubble {
+    max-width: 85% !important;
   }
 }
 

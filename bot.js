@@ -133,13 +133,15 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           rawParam.toLowerCase().startsWith(c.tag.toLowerCase() + '_') ||
           rawParam.toLowerCase().startsWith(c.tag.toLowerCase() + '-')
         );
+      }
       if (!matchedChannel && botToken) {
-        matchedChannel = channels.find(c => c.botToken === botToken);
+        matchedChannel = channels.find(c => c.botToken && c.botToken.trim() === String(botToken).trim());
       }
     }
 
-    const channelTag = matchedChannel ? matchedChannel.tag : (botToken.startsWith('8827730708') ? 'vip' : (rawParam || 'default'));
-    const channelName = matchedChannel ? matchedChannel.name : (botToken.startsWith('8827730708') ? 'VIP Direct Support Chat' : 'Southboookbot');
+    const isManishBot = botToken && String(botToken).startsWith('8827730708');
+    const channelTag = matchedChannel ? matchedChannel.tag : (isManishBot ? 'vip' : (rawParam || 'default'));
+    const channelName = matchedChannel ? matchedChannel.name : (isManishBot ? 'VIP Direct Support Chat' : 'Southboookbot');
 
     // Send Lead to Meta Conversions API (CAPI)
     const capiResult = await sendMetaCapiLead({
@@ -363,8 +365,9 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
         matchedChannel = channels.find(c => c.botToken === botToken);
       }
 
-      const chTag = matchedChannel ? matchedChannel.tag : (botToken.startsWith('8827730708') ? 'vip' : 'meta_ad');
-      const chName = matchedChannel ? matchedChannel.name : (botToken.startsWith('8827730708') ? 'VIP Direct Support Chat' : 'Southboookbot');
+      const isManishBot = botToken && String(botToken).startsWith('8827730708');
+      const chTag = matchedChannel ? matchedChannel.tag : (isManishBot ? 'vip' : 'meta_ad');
+      const chName = matchedChannel ? matchedChannel.name : (isManishBot ? 'VIP Direct Support Chat' : 'Southboookbot');
 
       const isLeadRecorded = existingLeads.some(l => String(l.userId) === String(user.id));
       if (!isLeadRecorded) {

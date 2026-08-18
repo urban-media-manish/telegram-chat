@@ -1,17 +1,1 @@
-[
-  {
-    "_id": "6a83b9955586add12812e4f9",
-    "userId": "8888888",
-    "userChatId": 8888888,
-    "sender": "user",
-    "userName": "Test",
-    "userUsername": "",
-    "text": "Hello",
-    "type": "text",
-    "botToken": "tok",
-    "channelTag": "meta_ad",
-    "read": false,
-    "createdAt": "2026-08-18T01:47:01.378Z",
-    "__v": 0
-  }
-]
+[]

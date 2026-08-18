@@ -17,12 +17,15 @@ document.addEventListener('DOMContentLoaded', () => {
   initEventListeners();
   initChannelModalListeners();
 
-  // Load appropriate data safely
-  loadAppConfig();
-  loadStats();
-  loadChannels();
-  loadLeads();
-  loadConversations();
+  const isAuth = checkAdminAuth();
+  if (isAuth) {
+    // Load appropriate data safely
+    loadAppConfig();
+    loadStats();
+    loadChannels();
+    loadLeads();
+    loadConversations();
+  }
 });
 
 // Real-Time Server-Sent Events (SSE) Socket Stream (0ms Instant Sync)
@@ -815,10 +818,14 @@ function renderChannels(channels) {
             <span class="info-label">Welcome Msg:</span>
             <span class="info-value text-truncate">${escapeHtml(ch.welcomeMessage || 'Default')}</span>
           </div>
+          <div class="info-row">
+            <span class="info-label">Client PIN:</span>
+            <span class="info-value" style="color:#818cf8; font-weight:700;">🔑 ${escapeHtml(ch.accessPin || '1234')}</span>
+          </div>
           
           <!-- Client Chat Portal Link -->
           <div class="channel-client-link-box" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); display: flex; gap: 0.5rem; justify-content: space-between; align-items: center;">
-            <button class="btn btn-outline btn-sm" onclick="copyClientChatLink('${escapeHtml(ch.tag)}')" style="font-size: 0.8rem; flex: 1;" title="Copy private link for client">
+            <button class="btn btn-outline btn-sm" onclick="copyClientChatLink('${escapeHtml(ch.tag)}', '${escapeHtml(ch.accessPin || '1234')}')" style="font-size: 0.8rem; flex: 1;" title="Copy private link for client">
               🔗 Copy Client Chat Link
             </button>
             <a href="/client/${escapeHtml(ch.tag)}" target="_blank" class="btn btn-outline btn-sm" style="font-size: 0.8rem;" title="Preview isolated chat view">
@@ -833,16 +840,21 @@ function renderChannels(channels) {
   container.innerHTML = html;
 }
 
-window.copyClientChatLink = function(tag) {
-  const clientUrl = `${window.location.origin}/client/${encodeURIComponent(tag)}`;
+window.copyClientChatLink = function(tag, pin = '1234') {
+  const directUrl = `${window.location.origin}/client/${encodeURIComponent(tag)}`;
+  const autoUrl = `${window.location.origin}/client/${encodeURIComponent(tag)}?pin=${encodeURIComponent(pin)}`;
+  
+  const choice = confirm(`🔐 Client Chat Link for "${tag}":\n\n📌 Client PIN: ${pin}\n\n• Click [OK] to Copy 1-Click Auto-Login Link (Direct chat):\n${autoUrl}\n\n• Click [Cancel] to Copy Standard Link (Client enters PIN manually):\n${directUrl}`);
+
+  const targetUrl = choice ? autoUrl : directUrl;
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(clientUrl).then(() => {
-      alert(`✅ Client Chat Link Copied to Clipboard!\n\n🔗 ${clientUrl}\n\n👉 Send this link to your client (${tag}). They will only see chats for this channel without any admin panel access!`);
+    navigator.clipboard.writeText(targetUrl).then(() => {
+      alert(`✅ Link Copied to Clipboard!\n\n🔗 ${targetUrl}\n\n👉 Send this link to your client (${tag}).`);
     }).catch(() => {
-      prompt('Copy Client Chat Link:', clientUrl);
+      prompt('Copy Client Chat Link:', targetUrl);
     });
   } else {
-    prompt('Copy Client Chat Link:', clientUrl);
+    prompt('Copy Client Chat Link:', targetUrl);
   }
 };
 
@@ -923,8 +935,9 @@ window.openChannelModal = function(channel = null) {
     }
     document.getElementById('inputLink').value = (channel.link || '').replace(/^https?:\/\/t\.me\//, '').replace(/^@/, '');
     document.getElementById('inputBotToken').value = channel.botToken || '';
-    document.getElementById('inputPixelId').value = channel.pixelId || '';
-    document.getElementById('inputAccessToken').value = channel.accessToken || '';
+    if (document.getElementById('inputPixelId')) document.getElementById('inputPixelId').value = channel.pixelId || '';
+    if (document.getElementById('inputAccessToken')) document.getElementById('inputAccessToken').value = channel.accessToken || '';
+    if (document.getElementById('inputAccessPin')) document.getElementById('inputAccessPin').value = channel.accessPin || '1234';
   } else {
     if (title) title.textContent = 'Add Telegram Account / Agent';
     document.getElementById('inputTag').value = '';
@@ -934,9 +947,10 @@ window.openChannelModal = function(channel = null) {
       document.getElementById('inputBotUsername').value = '';
     }
     document.getElementById('inputLink').value = '';
-    document.getElementById('inputBotToken').value = '';
-    document.getElementById('inputPixelId').value = '';
-    document.getElementById('inputAccessToken').value = '';
+    if (document.getElementById('inputBotToken')) document.getElementById('inputBotToken').value = '';
+    if (document.getElementById('inputPixelId')) document.getElementById('inputPixelId').value = '';
+    if (document.getElementById('inputAccessToken')) document.getElementById('inputAccessToken').value = '';
+    if (document.getElementById('inputAccessPin')) document.getElementById('inputAccessPin').value = '1234';
   }
 
   modal.classList.add('active');
@@ -983,7 +997,8 @@ async function handleSaveChannel(e) {
     link: link,
     botToken: document.getElementById('inputBotToken')?.value.trim() || '',
     pixelId: document.getElementById('inputPixelId')?.value.trim() || '',
-    accessToken: document.getElementById('inputAccessToken')?.value.trim() || ''
+    accessToken: document.getElementById('inputAccessToken')?.value.trim() || '',
+    accessPin: document.getElementById('inputAccessPin')?.value.trim() || '1234'
   };
 
   try {
@@ -1052,4 +1067,106 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// ─── Admin Authentication Guard ───────────────────────────────────────────────
+function checkAdminAuth() {
+  const token = localStorage.getItem('teletrack_admin_auth');
+  if (token) {
+    addLogoutButton();
+    return true;
+  }
+
+  // Render Admin Lock Overlay
+  let overlay = document.getElementById('adminAuthOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'adminAuthOverlay';
+    overlay.className = 'auth-lock-overlay';
+    overlay.innerHTML = `
+      <div class="auth-lock-card">
+        <div class="auth-lock-icon">👑</div>
+        <h2 class="auth-lock-title">Master Admin Panel</h2>
+        <p class="auth-lock-desc">Enter your Master Admin password to access chats, leads & configurations.</p>
+        <form id="adminAuthForm">
+          <div class="auth-input-wrap">
+            <input type="password" id="adminPasswordInput" class="auth-input" placeholder="Enter Admin Password..." required autocomplete="current-password" />
+            <div class="auth-error-text" id="adminAuthError"></div>
+          </div>
+          <button type="submit" class="btn-auth-submit" id="btnAdminLogin">
+            🔓 Unlock Admin Panel
+          </button>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const form = document.getElementById('adminAuthForm');
+    const input = document.getElementById('adminPasswordInput');
+    const errorEl = document.getElementById('adminAuthError');
+    const btn = document.getElementById('btnAdminLogin');
+
+    if (input) setTimeout(() => input.focus(), 150);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pass = input.value.trim();
+      if (!pass) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Verifying...';
+      errorEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pass, role: 'admin' })
+        });
+        const json = await res.json();
+        if (json.success) {
+          localStorage.setItem('teletrack_admin_auth', json.token || '1');
+          overlay.remove();
+          addLogoutButton();
+          // Load app data
+          loadAppConfig();
+          loadStats();
+          loadChannels();
+          loadLeads();
+          loadConversations();
+        } else {
+          errorEl.textContent = '❌ ' + (json.error || 'Incorrect Password');
+          errorEl.style.display = 'block';
+          input.value = '';
+          input.focus();
+        }
+      } catch (err) {
+        errorEl.textContent = '⚠️ Network error: ' + err.message;
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔓 Unlock Admin Panel';
+      }
+    });
+  }
+
+  return false;
+}
+
+function addLogoutButton() {
+  const actions = document.querySelector('.nav-actions');
+  if (!actions || document.getElementById('btnAdminLogout')) return;
+
+  const btn = document.createElement('button');
+  btn.id = 'btnAdminLogout';
+  btn.className = 'btn btn-sm btn-auth-logout';
+  btn.innerHTML = '🔒 Lock';
+  btn.title = 'Lock Admin Panel and Log Out';
+  btn.onclick = () => {
+    if (confirm('Are you sure you want to lock the Admin Panel and log out?')) {
+      localStorage.removeItem('teletrack_admin_auth');
+      window.location.reload();
+    }
+  };
+  actions.appendChild(btn);
 }

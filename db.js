@@ -53,6 +53,7 @@ const ChannelSchema = new mongoose.Schema({
   pixelId: { type: String, default: '' },
   accessToken: { type: String, default: '' },
   botToken: { type: String, default: '' },
+  accessPin: { type: String, default: '1234' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -282,6 +283,7 @@ const db = {
       pixelId: channelData.pixelId ? channelData.pixelId.trim() : '',
       accessToken: channelData.accessToken ? channelData.accessToken.trim() : '',
       botToken: channelData.botToken ? channelData.botToken.trim() : '',
+      accessPin: channelData.accessPin ? String(channelData.accessPin).trim() : '1234',
       updatedAt: new Date()
     };
 

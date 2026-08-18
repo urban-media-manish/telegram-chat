@@ -31,12 +31,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadClientInfo();
   }
   
-  initSSE();
-  loadConversations();
+  const isAuth = await checkClientAuth();
+  if (isAuth) {
+    initSSE();
+    loadConversations();
+  }
   
   // Auto refresh conversation list periodically as backup
   setInterval(() => {
-    loadConversations(true);
+    if (isClientAuthenticated()) {
+      loadConversations(true);
+    }
   }, 10000);
 });
 
@@ -367,7 +372,7 @@ async function sendChatMessage() {
     const res = await fetch('/api/chat/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: rawUserId, text })
+      body: JSON.stringify({ userId: activeChatUserId, text })
     });
 
     const json = await res.json();
@@ -583,4 +588,129 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// ─── Client Authentication Guard ──────────────────────────────────────────────
+function isClientAuthenticated() {
+  const adminToken = localStorage.getItem('teletrack_admin_auth');
+  if (adminToken) return true;
+  const clientToken = localStorage.getItem(`teletrack_client_auth_${currentChannelTag || 'default'}`);
+  return !!clientToken;
+}
+
+async function checkClientAuth() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const pinFromUrl = urlParams.get('pin');
+
+  // Auto-login via URL PIN if present
+  if (pinFromUrl) {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pinFromUrl, role: 'client', channelTag: currentChannelTag })
+      });
+      const json = await res.json();
+      if (json.success) {
+        localStorage.setItem(`teletrack_client_auth_${currentChannelTag || 'default'}`, json.token || '1');
+        addClientLogoutButton();
+        return true;
+      }
+    } catch (e) {}
+  }
+
+  if (isClientAuthenticated()) {
+    addClientLogoutButton();
+    return true;
+  }
+
+  // Render Client Lock Overlay
+  const brandName = channelInfo?.name || `Support (${currentChannelTag || 'Channel'})`;
+  let overlay = document.getElementById('clientAuthOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'clientAuthOverlay';
+    overlay.className = 'auth-lock-overlay';
+    overlay.innerHTML = `
+      <div class="auth-lock-card">
+        <div class="auth-lock-icon">🔒</div>
+        <h2 class="auth-lock-title">${escapeHtml(brandName)}</h2>
+        <p class="auth-lock-desc">Enter your 4-digit PIN or Password to access customer live chat.</p>
+        <form id="clientAuthForm">
+          <div class="auth-input-wrap">
+            <input type="password" id="clientPinInput" class="auth-input" placeholder="Enter Access PIN..." required autocomplete="current-password" />
+            <div class="auth-error-text" id="clientAuthError"></div>
+          </div>
+          <button type="submit" class="btn-auth-submit" id="btnClientLogin">
+            🔓 Unlock Live Chat
+          </button>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const form = document.getElementById('clientAuthForm');
+    const input = document.getElementById('clientPinInput');
+    const errorEl = document.getElementById('clientAuthError');
+    const btn = document.getElementById('btnClientLogin');
+
+    if (input) setTimeout(() => input.focus(), 150);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pass = input.value.trim();
+      if (!pass) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Verifying PIN...';
+      errorEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pass, role: 'client', channelTag: currentChannelTag })
+        });
+        const json = await res.json();
+        if (json.success) {
+          localStorage.setItem(`teletrack_client_auth_${currentChannelTag || 'default'}`, json.token || '1');
+          overlay.remove();
+          addClientLogoutButton();
+          initSSE();
+          loadConversations();
+        } else {
+          errorEl.textContent = '❌ ' + (json.error || 'Incorrect PIN / Password');
+          errorEl.style.display = 'block';
+          input.value = '';
+          input.focus();
+        }
+      } catch (err) {
+        errorEl.textContent = '⚠️ Network error: ' + err.message;
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔓 Unlock Live Chat';
+      }
+    });
+  }
+
+  return false;
+}
+
+function addClientLogoutButton() {
+  const actions = document.querySelector('.client-navbar .nav-actions') || document.querySelector('.nav-actions');
+  if (!actions || document.getElementById('btnClientLogout')) return;
+
+  const btn = document.createElement('button');
+  btn.id = 'btnClientLogout';
+  btn.className = 'btn btn-sm btn-auth-logout';
+  btn.innerHTML = '🔒 Lock';
+  btn.title = 'Lock Chat Session';
+  btn.onclick = () => {
+    if (confirm('Lock Live Chat session?')) {
+      localStorage.removeItem(`teletrack_client_auth_${currentChannelTag || 'default'}`);
+      window.location.reload();
+    }
+  };
+  actions.appendChild(btn);
 }

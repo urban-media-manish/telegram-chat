@@ -561,16 +561,21 @@ async function sendMessageToUser(targetKey, text) {
   if (userId.includes('_')) {
     const idx = userId.indexOf('_');
     const targetUid = userId.slice(0, idx);
-    const botPrefixOrTag = userId.slice(idx + 1);
+    const botPrefixOrTag = userId.slice(idx + 1).toLowerCase().trim();
     userId = targetUid;
 
     const channels = db.getChannels();
-    const matchedChan = channels.find(c => c.tag === botPrefixOrTag || (c.botToken && c.botToken.startsWith(botPrefixOrTag)));
+    const matchedChan = channels.find(c => 
+      (c.tag && c.tag.toLowerCase() === botPrefixOrTag) ||
+      (c.botUsername && c.botUsername.toLowerCase().replace(/^@/, '') === botPrefixOrTag) ||
+      (c.botToken && c.botToken.startsWith(botPrefixOrTag))
+    );
+
     if (matchedChan && matchedChan.botToken) {
       forcedBotToken = matchedChan.botToken;
       targetChannelTag = matchedChan.tag;
     } else {
-      for (const [tok, botInst] of activeBots.entries()) {
+      for (const [tok] of activeBots.entries()) {
         if (tok.startsWith(botPrefixOrTag)) {
           forcedBotToken = tok;
           break;
@@ -597,25 +602,58 @@ async function sendMessageToUser(targetKey, text) {
 
   const messages = await db.getMessagesByUser(targetKey, 50);
   const lastMsg = messages.slice().reverse().find(m => m.botToken);
-  const botToken = forcedBotToken || lastMsg?.botToken || '';
+  let botToken = forcedBotToken || lastMsg?.botToken || '';
 
-  let targetBot = (botToken ? activeBots.get(botToken) : null) || activeBots.get(MASTER_TOKEN) || activeBots.values().next().value;
-  if (!targetBot) {
-    if (botToken) startBotInstance(botToken);
-    else startBotInstance(MASTER_TOKEN);
-    targetBot = (botToken ? activeBots.get(botToken) : null) || activeBots.get(MASTER_TOKEN) || activeBots.values().next().value;
+  // Candidates list of bots to attempt in order
+  const botsToTry = [];
+  if (botToken && activeBots.has(botToken)) {
+    botsToTry.push({ token: botToken, bot: activeBots.get(botToken) });
   }
 
-  if (!targetBot) {
+  for (const [tok, botInst] of activeBots.entries()) {
+    if (!botsToTry.some(b => b.token === tok)) {
+      botsToTry.push({ token: tok, bot: botInst });
+    }
+  }
+
+  if (botsToTry.length === 0) {
+    startBotInstance(MASTER_TOKEN);
+    if (activeBots.has(MASTER_TOKEN)) {
+      botsToTry.push({ token: MASTER_TOKEN, bot: activeBots.get(MASTER_TOKEN) });
+    }
+  }
+
+  if (botsToTry.length === 0) {
     throw new Error('Telegram bot is starting up. Please try again in a few seconds.');
   }
 
-  try {
-    await targetBot.sendMessage(userChatId, text);
-    console.log(`📤 [Live Chat Delivered] Sent message to User ${userChatId} via Bot [${(botToken || MASTER_TOKEN).slice(0, 10)}...]: "${text}"`);
-  } catch (tgErr) {
-    console.error(`❌ Telegram send error to ${userChatId}:`, tgErr.message);
-    throw new Error(`Telegram Delivery: ${tgErr.message}`);
+  let sendSuccess = false;
+  let lastError = null;
+  let successfulBotToken = botToken || MASTER_TOKEN;
+
+  for (const candidate of botsToTry) {
+    try {
+      await candidate.bot.sendMessage(userChatId, text);
+      successfulBotToken = candidate.token;
+      sendSuccess = true;
+      console.log(`📤 [Live Chat Delivered] Sent message to User ${userChatId} via Bot [${candidate.token.slice(0, 10)}...]: "${text}"`);
+      break;
+    } catch (tgErr) {
+      lastError = tgErr;
+      console.warn(`⚠️ Telegram send attempt failed via Bot [${candidate.token.slice(0, 10)}...]:`, tgErr.message);
+      // If error is not "chat not found", don't loop needlessly
+      if (!tgErr.message.includes('chat not found') && !tgErr.message.includes('400')) {
+        break;
+      }
+    }
+  }
+
+  if (!sendSuccess) {
+    const isChatNotFound = lastError && lastError.message && lastError.message.includes('chat not found');
+    if (isChatNotFound) {
+      throw new Error(`Telegram chat not found for User ID ${userChatId}. If this is a fake/simulated test lead, Telegram cannot message simulated IDs. Real users must start (/start) the bot on Telegram first.`);
+    }
+    throw new Error(`Telegram Delivery: ${lastError ? lastError.message : 'Unknown delivery error'}`);
   }
 
   // Save to DB
@@ -625,7 +663,7 @@ async function sendMessageToUser(targetKey, text) {
     sender: 'admin',
     userName: 'Admin',
     text: text,
-    botToken: botToken || MASTER_TOKEN,
+    botToken: successfulBotToken,
     channelTag: targetChannelTag || lead?.channelTag || 'default'
   });
 

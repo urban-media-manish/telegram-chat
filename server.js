@@ -108,6 +108,45 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+// 0b. Authentication (Admin Password & Client PIN)
+app.post('/api/auth/login', async (req, res) => {
+  const { password, role, channelTag } = req.body;
+  if (!password || String(password).trim() === '') {
+    return res.status(400).json({ success: false, error: 'Password / PIN is required' });
+  }
+  const cleanPass = String(password).trim();
+  const adminPass = String(process.env.ADMIN_PASSWORD || 'admin1234').trim();
+
+  // Admin Login Check
+  if (role === 'admin' || (!channelTag && !role)) {
+    if (cleanPass === adminPass) {
+      return res.json({ success: true, role: 'admin', token: 'auth_adm_' + Buffer.from(adminPass).toString('base64') });
+    } else {
+      return res.status(401).json({ success: false, error: 'Incorrect Admin Password' });
+    }
+  }
+
+  // Client Channel Login Check
+  const channels = await db.getChannelsAsync();
+  const searchTag = (channelTag || '').toLowerCase().trim();
+  const channel = channels.find(c => 
+    (c.tag && c.tag.toLowerCase() === searchTag) ||
+    (c.botUsername && c.botUsername.toLowerCase().replace(/^@/, '') === searchTag)
+  ) || channels.find(c => c.name && c.name.toLowerCase().includes(searchTag));
+
+  // Master admin password unlocks any client portal too
+  if (cleanPass === adminPass) {
+    return res.json({ success: true, role: 'admin', channelTag: channel ? channel.tag : searchTag, token: 'auth_adm_' + Buffer.from(cleanPass).toString('base64') });
+  }
+
+  const targetPin = (channel && channel.accessPin) ? String(channel.accessPin).trim() : '1234';
+  if (cleanPass === targetPin) {
+    return res.json({ success: true, role: 'client', channelTag: channel ? channel.tag : searchTag, token: 'auth_cli_' + Buffer.from(cleanPass).toString('base64') });
+  } else {
+    return res.status(401).json({ success: false, error: 'Incorrect Access PIN for this channel' });
+  }
+});
+
 // 1. Get Dashboard Stats
 app.get('/api/stats', async (req, res) => {
   const stats = await db.getStatsAsync();
@@ -175,7 +214,8 @@ app.post('/api/channels', async (req, res) => {
     welcomeMessage,
     pixelId,
     accessToken,
-    botToken: botToken ? botToken.trim() : ''
+    botToken: botToken ? botToken.trim() : '',
+    accessPin: req.body.accessPin ? String(req.body.accessPin).trim() : '1234'
   });
 
   // Dynamically start new bot instance if a custom bot token was added

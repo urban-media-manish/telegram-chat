@@ -498,10 +498,10 @@ const db = {
     const userMap = new Map();
     const channels = this.getChannels();
     const getChannelInfo = (tag, botToken) => {
-      const found = channels.find(c => (tag && c.tag === tag) || (botToken && c.botToken === botToken));
+      const found = channels.find(c => (tag && c.tag === tag) || (botToken && c.botToken && c.botToken.trim() === String(botToken).trim()));
       return {
         tag: found ? found.tag : (tag || 'default'),
-        name: found ? found.name : (tag === 'vip' ? 'VIP Direct Support Chat' : (tag === 'meta_ad' ? 'Southboookbot' : 'Direct Chat'))
+        name: found ? found.name : (tag ? `Account (${tag})` : 'Direct Chat')
       };
     };
 

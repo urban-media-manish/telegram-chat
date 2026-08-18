@@ -123,10 +123,10 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
 
     console.log(`\n📥 [Incoming User] ID: ${user.id} (@${user.username || 'N/A'}), Param: "${rawParam || 'none'}"`);
 
-    // Channel Matching Logic
+    // Channel Matching Logic - 100% Dynamic for ANY Bot
     let matchedChannel = specificChannel;
+    const channels = db.getChannels();
     if (!matchedChannel) {
-      const channels = db.getChannels();
       if (rawParam) {
         matchedChannel = channels.find(c => 
           rawParam.toLowerCase() === c.tag.toLowerCase() ||
@@ -139,9 +139,8 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
       }
     }
 
-    const isManishBot = botToken && String(botToken).startsWith('8827730708');
-    const channelTag = matchedChannel ? matchedChannel.tag : (isManishBot ? 'vip' : (rawParam || 'default'));
-    const channelName = matchedChannel ? matchedChannel.name : (isManishBot ? 'VIP Direct Support Chat' : 'Southboookbot');
+    const channelTag = matchedChannel ? matchedChannel.tag : (rawParam || 'default');
+    const channelName = matchedChannel ? matchedChannel.name : (rawParam ? `Campaign (${rawParam})` : 'Direct Telegram Bot');
 
     // Send Lead to Meta Conversions API (CAPI)
     const capiResult = await sendMetaCapiLead({
@@ -362,12 +361,11 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
       const channels = db.getChannels();
       let matchedChannel = specificChannel;
       if (!matchedChannel && botToken) {
-        matchedChannel = channels.find(c => c.botToken === botToken);
+        matchedChannel = channels.find(c => c.botToken && c.botToken.trim() === String(botToken).trim());
       }
 
-      const isManishBot = botToken && String(botToken).startsWith('8827730708');
-      const chTag = matchedChannel ? matchedChannel.tag : (isManishBot ? 'vip' : 'meta_ad');
-      const chName = matchedChannel ? matchedChannel.name : (isManishBot ? 'VIP Direct Support Chat' : 'Southboookbot');
+      const chTag = matchedChannel ? matchedChannel.tag : 'default';
+      const chName = matchedChannel ? matchedChannel.name : 'Direct Chat';
 
       const isLeadRecorded = existingLeads.some(l => String(l.userId) === String(user.id));
       if (!isLeadRecorded) {

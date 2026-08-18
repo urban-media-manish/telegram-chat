@@ -559,9 +559,10 @@ async function sendMessageToUser(targetKey, text) {
   let targetChannelTag = 'default';
 
   if (userId.includes('_')) {
-    const parts = userId.split('_');
-    userId = parts[0];
-    const botPrefixOrTag = parts[1];
+    const idx = userId.indexOf('_');
+    const targetUid = userId.slice(0, idx);
+    const botPrefixOrTag = userId.slice(idx + 1);
+    userId = targetUid;
 
     const channels = db.getChannels();
     const matchedChan = channels.find(c => c.tag === botPrefixOrTag || (c.botToken && c.botToken.startsWith(botPrefixOrTag)));

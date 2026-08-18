@@ -582,9 +582,9 @@ const db = {
     let targetTag = null;
 
     if (key.includes('_')) {
-      const parts = key.split('_');
-      uid = parts[0];
-      targetTag = parts[1];
+      const idx = key.indexOf('_');
+      uid = key.slice(0, idx);
+      targetTag = key.slice(idx + 1);
     }
 
     try {
@@ -639,9 +639,9 @@ const db = {
     let targetTag = null;
 
     if (key.includes('_')) {
-      const parts = key.split('_');
-      uid = parts[0];
-      targetTag = parts[1];
+      const idx = key.indexOf('_');
+      uid = key.slice(0, idx);
+      targetTag = key.slice(idx + 1);
     }
 
     let allMessages = [];

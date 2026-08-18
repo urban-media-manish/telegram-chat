@@ -135,7 +135,10 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
         );
       }
       if (!matchedChannel && botToken) {
-        matchedChannel = channels.find(c => c.botToken && c.botToken.trim() === String(botToken).trim());
+        const cleanTok = String(botToken).trim();
+        const tokPrefix = cleanTok.split(':')[0];
+        matchedChannel = channels.find(c => c.botToken && c.botToken.trim() === cleanTok) ||
+                         channels.find(c => c.botToken && c.botToken.startsWith(tokPrefix));
       }
     }
 

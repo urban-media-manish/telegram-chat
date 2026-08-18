@@ -717,7 +717,7 @@ function renderLeadsTable(leads) {
     } else if (lead.capiStatus === 'failed') {
       capiBadge = `<span class="badge badge-danger" title="${escapeHtml(lead.capiError || 'Error')}">✗ Failed</span>`;
     } else {
-      capiBadge = `<span class="badge badge-warning" title="Missing Meta credentials in .env">⚠️ Skipped</span>`;
+      capiBadge = `<span class="badge badge-warning" title="${escapeHtml(lead.capiError || 'No Meta Pixel/Token configured')}">⚠️ Skipped</span>`;
     }
 
     html += `

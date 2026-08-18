@@ -33,14 +33,14 @@ async function sendMetaCapiLead({
   customAccessToken,
   channelName
 }) {
-  const pixelId = customPixelId || process.env.META_PIXEL_ID || '3572072086292080';
-  const accessToken = customAccessToken || process.env.META_ACCESS_TOKEN || 'EAAaQv2w9ac0BSOxieaFegNLZCtvkrSCNJ9ABKbTvoiWMyJmXvv5zTNMZAZCIRAUUWQFuFb4twMZCfipshMAlHHroMHPM5u31In9qrtc7MFfPDblZCZCGPvMocqld5yzY4sOiXcywZAJBcy3bJzAxLBb75lD7v3JKLRWiCwTAV0JqKfrUFpZCTxZAB43MRGV8ndgZD';
+  const pixelId = (customPixelId && customPixelId.trim()) || process.env.META_PIXEL_ID || '';
+  const accessToken = (customAccessToken && customAccessToken.trim()) || process.env.META_ACCESS_TOKEN || '';
   const apiVersion = process.env.META_GRAPH_API_VERSION || 'v21.0';
-  const testEventCode = process.env.META_TEST_EVENT_CODE || 'TEST66583';
+  const testEventCode = process.env.META_TEST_EVENT_CODE || '';
 
   if (!pixelId || !accessToken) {
-    console.warn(`⚠️ [Meta CAPI] Skipped: Pixel ID or Access Token is missing for lead (User: ${userId})`);
-    return { success: false, reason: 'Missing Meta credentials', skipped: true };
+    console.log(`ℹ️ [Meta CAPI] Skipped: No Pixel ID or Access Token configured for channel "${channelName || 'Direct'}" (User: ${userId})`);
+    return { success: false, reason: 'No Meta Pixel / Access Token configured for this channel', skipped: true };
   }
 
   const url = `https://graph.facebook.com/${apiVersion}/${pixelId}/events`;

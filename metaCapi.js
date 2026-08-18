@@ -57,20 +57,22 @@ async function sendMetaCapiLead({
     userData.ln = [hashData(lastName)];
   }
 
-  // If a Click ID (fbclid) was passed
+  // If a Click ID or Ad ID was passed in /start
   if (param) {
-    if (param.startsWith('fb_') || param.startsWith('fbclid_') || param.length > 20) {
+    if (param.startsWith('fb_') || param.startsWith('fbclid_') || param.length > 25) {
       const cleanFbclid = param.replace(/^fbclid_|^fb_/, '');
       userData.fbc = `fb.1.${Math.floor(Date.now() / 1000)}.${cleanFbclid}`;
     }
   }
 
   const now = Math.floor(Date.now() / 1000);
+  const sourceUrl = `https://t.me/southboookbot?start=${encodeURIComponent(param || 'ad1')}`;
 
   const pageViewEvent = {
     event_name: 'PageView',
     event_time: now,
-    action_source: 'system_generated',
+    action_source: 'website',
+    event_source_url: sourceUrl,
     user_data: userData,
     custom_data: {
       page_title: channelName || 'Telegram Ad Channel',
@@ -81,9 +83,14 @@ async function sendMetaCapiLead({
   const leadEvent = {
     event_name: 'Lead',
     event_time: now,
-    action_source: 'system_generated',
+    action_source: 'website',
+    event_source_url: sourceUrl,
     user_data: userData,
     custom_data: {
+      currency: 'INR',
+      value: 1.00,
+      content_name: channelName || 'Telegram Ad Lead',
+      content_category: 'Lead',
       lead_source: 'Telegram Multi-Channel Bot',
       channel_name: channelName || 'Default',
       telegram_username: username ? `@${username}` : undefined,

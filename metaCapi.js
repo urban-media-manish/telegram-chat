@@ -45,9 +45,10 @@ async function sendMetaCapiLead({
 
   const url = `https://graph.facebook.com/${apiVersion}/${pixelId}/events`;
 
-  // Prepare user_data
+  // Prepare user_data for Maximum Event Match Quality in Meta Ads
   const userData = {
-    external_id: [hashData(userId ? String(userId) : 'unknown_user')]
+    external_id: [hashData(userId ? String(userId) : 'unknown_user')],
+    country: [hashData('in')]
   };
 
   if (firstName) {
@@ -66,11 +67,13 @@ async function sendMetaCapiLead({
   }
 
   const now = Math.floor(Date.now() / 1000);
+  const eventId = `lead_${userId || 'user'}_${now}`;
   const sourceUrl = `https://t.me/southboookbot?start=${encodeURIComponent(param || 'ad1')}`;
 
   const pageViewEvent = {
     event_name: 'PageView',
     event_time: now,
+    event_id: `pv_${eventId}`,
     action_source: 'website',
     event_source_url: sourceUrl,
     user_data: userData,
@@ -83,6 +86,7 @@ async function sendMetaCapiLead({
   const leadEvent = {
     event_name: 'Lead',
     event_time: now,
+    event_id: eventId,
     action_source: 'website',
     event_source_url: sourceUrl,
     user_data: userData,
@@ -103,10 +107,9 @@ async function sendMetaCapiLead({
     access_token: accessToken
   };
 
-  // If testing with Meta Events Manager "Test events" tool
-  const effectiveTestCode = testEventCode || process.env.META_TEST_EVENT_CODE;
-  if (effectiveTestCode && effectiveTestCode.trim() !== '') {
-    payload.test_event_code = effectiveTestCode.trim();
+  // 100% Pure Live Production Mode (No test code, so Meta attributes live CPR to Ads Manager)
+  if (customPixelId && customAccessToken && testEventCode && testEventCode.trim() !== '') {
+    payload.test_event_code = testEventCode.trim();
   }
 
   try {

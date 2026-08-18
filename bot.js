@@ -711,6 +711,8 @@ async function sendMessageToUser(targetKey, text = '', mediaUrl = '', mediaType 
   let lastError = null;
   let successfulBotToken = botToken || MASTER_TOKEN;
 
+  let permanentUrl = '';
+
   for (const candidate of botsToTry) {
     try {
       if (mediaType === 'image' && mediaUrl) {
@@ -721,7 +723,13 @@ async function sendMessageToUser(targetKey, text = '', mediaUrl = '', mediaType 
             imageSource = fs.createReadStream(localPath);
           }
         }
-        await candidate.bot.sendPhoto(userChatId, imageSource, { caption: text || undefined });
+        const sentMsg = await candidate.bot.sendPhoto(userChatId, imageSource, { caption: text || undefined });
+        if (sentMsg && sentMsg.photo && sentMsg.photo.length > 0) {
+          const fileId = sentMsg.photo[sentMsg.photo.length - 1].file_id;
+          try {
+            permanentUrl = await candidate.bot.getFileLink(fileId);
+          } catch (e) {}
+        }
       } else if ((mediaType === 'voice' || mediaType === 'audio') && mediaUrl) {
         let audioSource = mediaUrl;
         if (mediaUrl.startsWith('/uploads/')) {
@@ -731,7 +739,12 @@ async function sendMessageToUser(targetKey, text = '', mediaUrl = '', mediaType 
           }
         }
         try {
-          await candidate.bot.sendVoice(userChatId, audioSource, { caption: text || undefined });
+          const sentMsg = await candidate.bot.sendVoice(userChatId, audioSource, { caption: text || undefined });
+          if (sentMsg && sentMsg.voice) {
+            try {
+              permanentUrl = await candidate.bot.getFileLink(sentMsg.voice.file_id);
+            } catch (e) {}
+          }
         } catch (voiceErr) {
           console.warn('⚠️ sendVoice fallback to sendAudio:', voiceErr.message);
           if (mediaUrl.startsWith('/uploads/')) {
@@ -740,7 +753,12 @@ async function sendMessageToUser(targetKey, text = '', mediaUrl = '', mediaType 
               audioSource = fs.createReadStream(localPath);
             }
           }
-          await candidate.bot.sendAudio(userChatId, audioSource, { title: 'Voice Note' });
+          const sentMsg = await candidate.bot.sendAudio(userChatId, audioSource, { title: 'Voice Note' });
+          if (sentMsg && sentMsg.audio) {
+            try {
+              permanentUrl = await candidate.bot.getFileLink(sentMsg.audio.file_id);
+            } catch (e) {}
+          }
         }
       } else {
         await candidate.bot.sendMessage(userChatId, text);
@@ -768,15 +786,16 @@ async function sendMessageToUser(targetKey, text = '', mediaUrl = '', mediaType 
     throw new Error(`Telegram Delivery: ${lastError ? lastError.message : 'Unknown delivery error'}`);
   }
 
-  // Save to DB
+  // Save to DB with Permanent Cloud CDN URL
+  const finalMediaUrl = permanentUrl || mediaUrl || '';
   const record = await db.saveMessage({
     userId: userId,
     userChatId: userChatId,
     sender: 'admin',
     userName: 'Admin',
     text: text || '',
-    type: mediaType || (mediaUrl ? (mediaType || 'image') : 'text'),
-    mediaUrl: mediaUrl || '',
+    type: mediaType || (finalMediaUrl ? (mediaType || 'image') : 'text'),
+    mediaUrl: finalMediaUrl,
     mediaType: mediaType || '',
     botToken: successfulBotToken,
     channelTag: targetChannelTag || lead?.channelTag || 'default'

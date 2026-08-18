@@ -256,15 +256,17 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           await targetBot.sendSticker(userRecord.userChatId, msg.sticker.file_id);
         }
 
-        await db.saveMessage({
+        const savedTopicAdminMsg = await db.saveMessage({
           userId: userRecord.userId,
           userChatId: userRecord.userChatId,
           sender: 'admin',
           userName: 'Admin',
           text: msg.text || '[Media]',
-          botToken: userRecord.botToken
+          botToken: userRecord.botToken,
+          channelTag: userRecord.channelTag || 'default'
         });
 
+        notifyRealtime({ type: 'new_message', message: savedTopicAdminMsg, userId: userRecord.userId });
         console.log(`📤 [Topic Reply Delivered] To User ${userRecord.userId} (${userRecord.userName}): "${msg.text || '[Media]'}"`);
       } catch (err) {
         console.error('❌ Failed to deliver topic message to user:', err.message);
@@ -334,7 +336,8 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           sender: 'admin',
           userName: 'Admin',
           text: msg.text || '[Media]',
-          botToken: replyTarget.botToken
+          botToken: replyTarget.botToken,
+          channelTag: replyTarget.channelTag || 'default'
         });
 
         notifyRealtime({ type: 'new_message', message: savedAdminMsg, userId: replyTarget.userId });
@@ -361,13 +364,16 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
       const channels = db.getChannels();
       let matchedChannel = specificChannel;
       if (!matchedChannel && botToken) {
-        matchedChannel = channels.find(c => c.botToken && c.botToken.trim() === String(botToken).trim());
+        const cleanTok = String(botToken).trim();
+        const tokPrefix = cleanTok.split(':')[0];
+        matchedChannel = channels.find(c => c.botToken && c.botToken.trim() === cleanTok) ||
+                         channels.find(c => c.botToken && c.botToken.startsWith(tokPrefix));
       }
 
       const chTag = matchedChannel ? matchedChannel.tag : 'default';
       const chName = matchedChannel ? matchedChannel.name : 'Direct Chat';
 
-      const isLeadRecorded = existingLeads.some(l => String(l.userId) === String(user.id));
+      const isLeadRecorded = existingLeads.some(l => String(l.userId) === String(user.id) && l.channelTag === chTag);
       if (!isLeadRecorded) {
         const autoLead = await db.addLead({
           userId: user.id,
@@ -547,16 +553,24 @@ function registerChannelBot(channel) {
 async function sendMessageToUser(targetKey, text) {
   let userId = String(targetKey);
   let forcedBotToken = '';
+  let targetChannelTag = 'default';
 
   if (userId.includes('_')) {
     const parts = userId.split('_');
     userId = parts[0];
     const botPrefixOrTag = parts[1];
 
-    for (const [tok, botInst] of activeBots.entries()) {
-      if (tok.startsWith(botPrefixOrTag)) {
-        forcedBotToken = tok;
-        break;
+    const channels = db.getChannels();
+    const matchedChan = channels.find(c => c.tag === botPrefixOrTag || (c.botToken && c.botToken.startsWith(botPrefixOrTag)));
+    if (matchedChan && matchedChan.botToken) {
+      forcedBotToken = matchedChan.botToken;
+      targetChannelTag = matchedChan.tag;
+    } else {
+      for (const [tok, botInst] of activeBots.entries()) {
+        if (tok.startsWith(botPrefixOrTag)) {
+          forcedBotToken = tok;
+          break;
+        }
       }
     }
   }
@@ -583,8 +597,9 @@ async function sendMessageToUser(targetKey, text) {
 
   let targetBot = (botToken ? activeBots.get(botToken) : null) || activeBots.get(MASTER_TOKEN) || activeBots.values().next().value;
   if (!targetBot) {
-    startBotInstance(MASTER_TOKEN);
-    targetBot = activeBots.get(MASTER_TOKEN) || activeBots.values().next().value;
+    if (botToken) startBotInstance(botToken);
+    else startBotInstance(MASTER_TOKEN);
+    targetBot = (botToken ? activeBots.get(botToken) : null) || activeBots.get(MASTER_TOKEN) || activeBots.values().next().value;
   }
 
   if (!targetBot) {
@@ -607,7 +622,7 @@ async function sendMessageToUser(targetKey, text) {
     userName: 'Admin',
     text: text,
     botToken: botToken || MASTER_TOKEN,
-    channelTag: lead?.channelTag || 'default'
+    channelTag: targetChannelTag || lead?.channelTag || 'default'
   });
 
   notifyRealtime({ type: 'new_message', message: record, userId: userId });

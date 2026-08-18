@@ -506,12 +506,13 @@ const db = {
         (tokenPrefix && c.botToken && c.botToken.startsWith(tokenPrefix))
       ) || channels.find(c => tag && c.tag && c.tag.toLowerCase() === tag.toLowerCase());
 
+      const finalTag = found ? found.tag : (tag || 'default');
       return {
-        tag: found ? found.tag : (tag || 'default'),
+        tag: finalTag,
         name: found ? found.name : (tag ? `Account (${tag})` : 'Direct Chat'),
         botUsername: found ? (found.botUsername || '') : '',
         botToken: found ? found.botToken : cleanToken,
-        botKey: tokenPrefix || (found ? found.tag : (tag || 'default'))
+        botKey: finalTag
       };
     };
 
@@ -521,7 +522,7 @@ const db = {
       if (EXCLUDE.has(uid)) continue;
       const displayName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || (lead.username ? `@${lead.username}` : `User ${lead.userId}`);
       const chInfo = getChannelInfo(lead.channelTag, '');
-      const convKey = `${uid}_${chInfo.botKey}`;
+      const convKey = `${uid}_${chInfo.tag}`;
 
       convMap.set(convKey, {
         convId: convKey,
@@ -545,7 +546,7 @@ const db = {
       const uid = String(msg.userId);
       if (EXCLUDE.has(uid)) continue;
       const chInfo = getChannelInfo(msg.channelTag, msg.botToken);
-      const convKey = `${uid}_${chInfo.botKey}`;
+      const convKey = `${uid}_${chInfo.tag}`;
 
       const existing = convMap.get(convKey) || {
         convId: convKey,
@@ -587,12 +588,22 @@ const db = {
     const key = String(convIdOrUserId);
     let filter = { sender: 'user', read: false };
 
+    let matchedTag = null, matchedPrefix = null, uid = key;
     if (key.includes('_')) {
       const parts = key.split('_');
-      filter.userId = parts[0];
+      uid = parts[0];
+      const botKey = parts[1];
+      const channels = this.getChannels();
+      const matchedChan = channels.find(c => c.tag === botKey || (c.botToken && c.botToken.startsWith(botKey)));
+      matchedTag = matchedChan ? matchedChan.tag : botKey;
+      matchedPrefix = matchedChan && matchedChan.botToken ? matchedChan.botToken.split(':')[0] : botKey;
+
+      filter.userId = uid;
       filter.$or = [
-        { botToken: new RegExp('^' + parts[1]) },
-        { channelTag: parts[1] }
+        { channelTag: matchedTag },
+        { botToken: new RegExp('^' + matchedPrefix) },
+        { botToken: new RegExp('^' + botKey) },
+        { channelTag: botKey }
       ];
     } else {
       filter.userId = key;
@@ -609,7 +620,14 @@ const db = {
     for (const msg of messages) {
       if (key.includes('_')) {
         const parts = key.split('_');
-        if (String(msg.userId) === parts[0] && ((msg.botToken && msg.botToken.startsWith(parts[1])) || msg.channelTag === parts[1]) && msg.sender === 'user' && !msg.read) {
+        const u = parts[0];
+        const botKey = parts[1];
+        if (String(msg.userId) === u &&
+            (msg.channelTag === matchedTag ||
+             (matchedPrefix && msg.botToken && msg.botToken.startsWith(matchedPrefix)) ||
+             (botKey && msg.botToken && msg.botToken.startsWith(botKey)) ||
+             msg.channelTag === botKey) &&
+            msg.sender === 'user' && !msg.read) {
           msg.read = true;
           changed = true;
         }
@@ -628,14 +646,22 @@ const db = {
     let filter = {};
     const key = String(convIdOrUserId);
 
+    let matchedTag = null, matchedPrefix = null, uid = key;
     if (key.includes('_')) {
       const parts = key.split('_');
-      const uid = parts[0];
+      uid = parts[0];
       const botKey = parts[1];
+
+      const channels = this.getChannels();
+      const matchedChan = channels.find(c => c.tag === botKey || (c.botToken && c.botToken.startsWith(botKey)));
+      matchedTag = matchedChan ? matchedChan.tag : botKey;
+      matchedPrefix = matchedChan && matchedChan.botToken ? matchedChan.botToken.split(':')[0] : botKey;
 
       filter = {
         userId: uid,
         $or: [
+          { channelTag: matchedTag },
+          { botToken: new RegExp('^' + matchedPrefix) },
           { botToken: new RegExp('^' + botKey) },
           { channelTag: botKey }
         ]
@@ -656,11 +682,14 @@ const db = {
     const messages = readJsonFile(MESSAGES_FILE, []);
     if (key.includes('_')) {
       const parts = key.split('_');
-      const uid = parts[0];
+      const u = parts[0];
       const botKey = parts[1];
       return messages.filter(m =>
-        String(m.userId) === uid &&
-        ((m.botToken && m.botToken.startsWith(botKey)) || (m.channelTag && m.channelTag === botKey))
+        String(m.userId) === u &&
+        (m.channelTag === matchedTag ||
+         (matchedPrefix && m.botToken && m.botToken.startsWith(matchedPrefix)) ||
+         (botKey && m.botToken && m.botToken.startsWith(botKey)) ||
+         m.channelTag === botKey)
       ).slice(-limit);
     }
     return messages.filter(m => String(m.userId) === key).slice(-limit);

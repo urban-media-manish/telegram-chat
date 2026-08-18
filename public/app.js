@@ -37,10 +37,12 @@ function initSSE() {
         if (payload.type === 'new_message' && payload.message) {
           const msg = payload.message;
           const botPrefix = (msg.botToken || '').split(':')[0];
-          const msgConvKey = `${msg.userId}_${botPrefix || msg.channelTag || 'default'}`;
+          const matchedChan = allChannels.find(c => (msg.channelTag && c.tag === msg.channelTag) || (botPrefix && c.botToken && c.botToken.startsWith(botPrefix)));
+          const chTag = matchedChan ? matchedChan.tag : (msg.channelTag || 'default');
+          const msgConvKey = `${msg.userId}_${chTag}`;
 
           // If message is in active open chat room, render instantly (0ms)
-          if (activeChatUserId && (String(activeChatUserId) === msgConvKey || String(activeChatUserId) === String(msg.userId))) {
+          if (activeChatUserId && (String(activeChatUserId) === msgConvKey || String(activeChatUserId) === `${msg.userId}_${msg.channelTag}`)) {
             appendMessageBubbleDirectly(msg);
           } else if (!activeChatUserId && window.innerWidth > 768) {
             selectConversation(msgConvKey);
@@ -359,8 +361,12 @@ async function loadConversations(isSilent = false) {
       const kpiChats = document.getElementById('kpiActiveChats');
       if (kpiChats) kpiChats.textContent = allConversations.length;
 
-      // Auto-select first conversation on desktop if none selected
-      if (container && !activeChatUserId && allConversations.length > 0 && window.innerWidth > 768 && !isSilent) {
+      // Auto-select pending or first conversation on desktop if none selected
+      const pendingConv = sessionStorage.getItem('pendingChatConv');
+      if (pendingConv) {
+        sessionStorage.removeItem('pendingChatConv');
+        selectConversation(pendingConv);
+      } else if (container && !activeChatUserId && allConversations.length > 0 && window.innerWidth > 768 && !isSilent) {
         selectConversation(allConversations[0].convId || allConversations[0].userId);
       }
     }
@@ -729,7 +735,7 @@ function renderLeadsTable(leads) {
         <td>${capiBadge}</td>
         <td class="text-muted text-sm">${dateFormatted}</td>
         <td>
-          <a href="/chat" class="btn btn-outline btn-sm" onclick="selectConversation('${lead.userId}')">
+          <a href="/chat" class="btn btn-outline btn-sm" onclick="sessionStorage.setItem('pendingChatConv', '${lead.userId}_${lead.channelTag || 'default'}')">
             💬 Open Chat
           </a>
         </td>

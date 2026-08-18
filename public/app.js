@@ -350,6 +350,12 @@ function initChatEventListeners() {
         sendChatMessage();
       }
     });
+
+    // Auto-expand textarea height as user types or shifts down with Shift+Enter
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+    });
   }
 
   if (searchInput) {
@@ -610,6 +616,7 @@ async function sendChatMessage() {
   if (!text) return;
 
   input.value = '';
+  input.style.height = 'auto';
 
   // Instant local echo
   appendMessageBubbleDirectly({

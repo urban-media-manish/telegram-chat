@@ -388,7 +388,10 @@ async function sendChatMessage() {
 
   const rawUserId = activeChatUserId.includes('_') ? activeChatUserId.split('_')[0] : activeChatUserId;
 
-  if (input) input.value = '';
+  if (input) {
+    input.value = '';
+    input.style.height = 'auto';
+  }
   if (btn) btn.disabled = true;
 
   // Instant local echo in 0ms
@@ -436,6 +439,12 @@ function initChatEventListeners() {
         e.preventDefault();
         sendChatMessage();
       }
+    });
+
+    // Auto-expand textarea height as user types or shifts down with Shift+Enter
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 140) + 'px';
     });
   }
 

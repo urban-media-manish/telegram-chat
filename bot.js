@@ -176,18 +176,54 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
     notifyRealtime({ type: 'new_lead', lead: leadRecord });
 
     // Welcome Message (Direct in-bot chat greeting)
-    let welcomeText = '';
-    if (matchedChannel && matchedChannel.welcomeMessage) {
-      welcomeText = matchedChannel.welcomeMessage;
-    } else {
-      welcomeText = `👋 **Welcome, ${user.first_name || 'there'}!**\n\n` +
-                    `🔥 Thank you for reaching out to us!\n\n` +
-                    `💬 **We are online right now.** Type and send your message below, and our team will answer you directly here! 👇`;
-    }
+    const DEFAULT_WELCOME_MESSAGE = `🔥 WELCOME TO INDIA'S TRUSTED PLATFORM 🔥\n\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `💎 ACCESS OUR PREMIUM PARTNER PLATFORMS 💎\n\n` +
+      `👇 Choose Any Platform & Get Started 👇\n\n` +
+      `🏆 TRUSTED & ESTABLISHED NETWORK 🏆\n\n` +
+      `🔶 SOUTHBOOK\n` +
+      `♠️ https://Southbook.win\n` +
+      `APP :- https://mythemedata.com/apk/Southbook.win.apk\n\n` +
+      `🔶 REDDYANNA\n` +
+      `♠️ www.xreddyanna1.com\n\n` +
+      `🔶 LOTUS365\n` +
+      `♠️ www.lotus365x.vip\n\n` +
+      `🔶 FAIRPLAY\n` +
+      `♠️ www.fairplayx.club\n\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `⚡ Quick ID Activation\n` +
+      `⚡ Fast Deposit & Withdrawal Support\n` +
+      `⚡ 24×7 Customer Assistance\n` +
+      `⚡ Personal Guidance Available\n\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `📞 OFFICIAL SUPPORT DESK\n\n` +
+      `💬 WhatsApp Support Available 24×7\n` +
+      `https://wa.link/fairplayx\n` +
+      `https://wa.link/lotusx\n` +
+      `https://wa.link/reddyx\n` +
+      `https://wa.link/southbook\n\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `🏆 Trusted Service\n` +
+      `⚡ Fast Support\n` +
+      `📲 Instant Assistance`;
+
+    let welcomeText = (matchedChannel && matchedChannel.welcomeMessage && matchedChannel.welcomeMessage.length > 50)
+      ? matchedChannel.welcomeMessage
+      : DEFAULT_WELCOME_MESSAGE;
 
     try {
       await bot.sendMessage(chatId, welcomeText, {
-        parse_mode: 'Markdown'
+        disable_web_page_preview: true
+      });
+
+      await db.saveMessage({
+        userId: user.id,
+        userChatId: chatId,
+        sender: 'admin',
+        userName: channelName || 'Support Bot',
+        text: welcomeText,
+        botToken: botToken,
+        channelTag: channelTag
       });
     } catch (sendErr) {
       console.error('❌ Failed to send Telegram welcome message:', sendErr.message);

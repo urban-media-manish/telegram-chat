@@ -133,11 +133,13 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           rawParam.toLowerCase().startsWith(c.tag.toLowerCase() + '_') ||
           rawParam.toLowerCase().startsWith(c.tag.toLowerCase() + '-')
         );
+      if (!matchedChannel && botToken) {
+        matchedChannel = channels.find(c => c.botToken === botToken);
       }
     }
 
-    const channelTag = matchedChannel ? matchedChannel.tag : (rawParam || 'default');
-    const channelName = matchedChannel ? matchedChannel.name : 'Default / Master Channel';
+    const channelTag = matchedChannel ? matchedChannel.tag : (botToken.startsWith('8827730708') ? 'vip' : (rawParam || 'default'));
+    const channelName = matchedChannel ? matchedChannel.name : (botToken.startsWith('8827730708') ? 'VIP Direct Support Chat' : 'Southboookbot');
 
     // Send Lead to Meta Conversions API (CAPI)
     const capiResult = await sendMetaCapiLead({
@@ -355,6 +357,15 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
 
       // Ensure user is recorded in leads if not already
       const existingLeads = db.getLeads(500);
+      const channels = db.getChannels();
+      let matchedChannel = specificChannel;
+      if (!matchedChannel && botToken) {
+        matchedChannel = channels.find(c => c.botToken === botToken);
+      }
+
+      const chTag = matchedChannel ? matchedChannel.tag : (botToken.startsWith('8827730708') ? 'vip' : 'meta_ad');
+      const chName = matchedChannel ? matchedChannel.name : (botToken.startsWith('8827730708') ? 'VIP Direct Support Chat' : 'Southboookbot');
+
       const isLeadRecorded = existingLeads.some(l => String(l.userId) === String(user.id));
       if (!isLeadRecorded) {
         const autoLead = await db.addLead({
@@ -363,9 +374,9 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           lastName: user.last_name || '',
           username: user.username || '',
           languageCode: user.language_code || 'en',
-          channelTag: specificChannel ? specificChannel.tag : 'meta_ad',
-          channelName: specificChannel ? specificChannel.name : 'Southboookbot',
-          rawParam: specificChannel ? specificChannel.tag : 'meta_ad',
+          channelTag: chTag,
+          channelName: chName,
+          rawParam: chTag,
           capiStatus: 'skipped',
           capiTraceId: '',
           capiError: null
@@ -381,7 +392,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
         userUsername: user.username || '',
         text: msg.text || '[Media / Attachment]',
         botToken: botToken,
-        channelTag: specificChannel ? specificChannel.tag : 'meta_ad'
+        channelTag: chTag
       });
 
       notifyRealtime({ type: 'new_message', message: savedUserMsg, userId: user.id });

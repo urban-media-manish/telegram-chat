@@ -496,18 +496,27 @@ const db = {
     }
 
     const userMap = new Map();
+    const channels = this.getChannels();
+    const getChannelInfo = (tag, botToken) => {
+      const found = channels.find(c => (tag && c.tag === tag) || (botToken && c.botToken === botToken));
+      return {
+        tag: found ? found.tag : (tag || 'default'),
+        name: found ? found.name : (tag === 'vip' ? 'VIP Direct Support Chat' : (tag === 'meta_ad' ? 'Southboookbot' : 'Direct Chat'))
+      };
+    };
 
     for (const lead of leads) {
       const uid = String(lead.userId);
       if (EXCLUDE.has(uid)) continue;
       const displayName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || (lead.username ? `@${lead.username}` : `User ${lead.userId}`);
+      const chInfo = getChannelInfo(lead.channelTag, '');
       userMap.set(uid, {
         userId: lead.userId,
         userChatId: lead.userId,
         userName: displayName,
         userUsername: lead.username || '',
-        channelTag: lead.channelTag || 'default',
-        channelName: lead.channelName || 'Default',
+        channelTag: chInfo.tag,
+        channelName: chInfo.name,
         lastMessage: 'Started bot',
         lastMessageSender: 'system',
         lastMessageTime: lead.createdAt,
@@ -519,13 +528,14 @@ const db = {
     for (const msg of messages) {
       const uid = String(msg.userId);
       if (EXCLUDE.has(uid)) continue;
+      const chInfo = getChannelInfo(msg.channelTag, msg.botToken);
       const existing = userMap.get(uid) || {
         userId: msg.userId,
         userChatId: msg.userChatId || msg.userId,
         userName: msg.userName || (msg.userUsername ? `@${msg.userUsername}` : `User ${msg.userId}`),
         userUsername: msg.userUsername || '',
-        channelTag: msg.channelTag || 'default',
-        channelName: 'Direct Chat',
+        channelTag: chInfo.tag,
+        channelName: chInfo.name,
         lastMessage: '',
         lastMessageSender: '',
         lastMessageTime: msg.createdAt,
@@ -540,7 +550,11 @@ const db = {
         if (msg.userName && msg.userName !== 'Admin') existing.userName = msg.userName;
         if (msg.userUsername) existing.userUsername = msg.userUsername;
       }
-      if (msg.botToken) existing.botToken = msg.botToken;
+      if (msg.botToken) {
+        existing.botToken = msg.botToken;
+        existing.channelTag = chInfo.tag;
+        existing.channelName = chInfo.name;
+      }
       if (msg.userChatId) existing.userChatId = msg.userChatId;
       if (msg.sender === 'user' && !msg.read) existing.unreadCount = (existing.unreadCount || 0) + 1;
       userMap.set(uid, existing);

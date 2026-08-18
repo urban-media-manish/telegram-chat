@@ -34,6 +34,7 @@ function initSSE() {
     es.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
+        if (payload.type === 'new_message' && payload.message) {
           const msg = payload.message;
           const botPrefix = (msg.botToken || '').split(':')[0];
           const msgConvKey = `${msg.userId}_${botPrefix || msg.channelTag || 'default'}`;

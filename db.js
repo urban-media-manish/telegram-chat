@@ -612,7 +612,13 @@ const db = {
             toMarkIds.push(m._id);
           } else {
             const chInfo = this.getChannelInfo(m.channelTag, m.botToken);
-            if (chInfo.tag.toLowerCase() === targetTag.toLowerCase() || (m.channelTag && m.channelTag.toLowerCase() === targetTag.toLowerCase())) {
+            const cleanBot = (chInfo.botUsername || '').replace(/^@/, '').toLowerCase().trim();
+            const botKey = (chInfo.botKey || '').toLowerCase().trim();
+            const chTag = (chInfo.tag || '').toLowerCase().trim();
+            const msgTag = (m.channelTag || '').toLowerCase().trim();
+            const target = targetTag.toLowerCase().trim();
+
+            if (chTag === target || msgTag === target || cleanBot === target || botKey === target) {
               toMarkIds.push(m._id);
             }
           }
@@ -633,7 +639,13 @@ const db = {
           changed = true;
         } else {
           const chInfo = this.getChannelInfo(msg.channelTag, msg.botToken);
-          if (chInfo.tag.toLowerCase() === targetTag.toLowerCase() || (msg.channelTag && msg.channelTag.toLowerCase() === targetTag.toLowerCase())) {
+          const cleanBot = (chInfo.botUsername || '').replace(/^@/, '').toLowerCase().trim();
+          const botKey = (chInfo.botKey || '').toLowerCase().trim();
+          const chTag = (chInfo.tag || '').toLowerCase().trim();
+          const msgTag = (msg.channelTag || '').toLowerCase().trim();
+          const target = targetTag.toLowerCase().trim();
+
+          if (chTag === target || msgTag === target || cleanBot === target || botKey === target) {
             msg.read = true;
             changed = true;
           }
@@ -652,7 +664,7 @@ const db = {
     if (key.includes('_')) {
       const idx = key.indexOf('_');
       uid = key.slice(0, idx);
-      targetTag = key.slice(idx + 1);
+      targetTag = key.slice(idx + 1).toLowerCase().trim();
     }
 
     let allMessages = [];
@@ -674,18 +686,20 @@ const db = {
 
     const filtered = userMsgs.filter(m => {
       const chInfo = this.getChannelInfo(m.channelTag, m.botToken);
-      return chInfo.tag.toLowerCase() === targetTag.toLowerCase() ||
-             (m.channelTag && m.channelTag.toLowerCase() === targetTag.toLowerCase());
+      const cleanBot = (chInfo.botUsername || '').replace(/^@/, '').toLowerCase().trim();
+      const botKey = (chInfo.botKey || '').toLowerCase().trim();
+      const chTag = (chInfo.tag || '').toLowerCase().trim();
+      const msgTag = (m.channelTag || '').toLowerCase().trim();
+
+      return chTag === targetTag ||
+             msgTag === targetTag ||
+             cleanBot === targetTag ||
+             botKey === targetTag;
     });
 
     if (filtered.length > 0) return filtered.slice(-limit);
 
-    if (targetTag.toLowerCase() === 'meta_ad' || targetTag.toLowerCase() === 'default') {
-      const fallback = userMsgs.filter(m => !m.channelTag || m.channelTag === 'default' || m.channelTag === 'meta_ad');
-      if (fallback.length > 0) return fallback.slice(-limit);
-    }
-
-    return filtered.slice(-limit);
+    return userMsgs.slice(-limit);
   },
 
   getStats() {

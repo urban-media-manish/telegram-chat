@@ -151,7 +151,7 @@ const db = {
       updatedAt: new Date()
     };
     if (isConnected) {
-      await Admin.findOneAndUpdate({ key: 'main' }, data, { upsert: true, new: true });
+      await Admin.findOneAndUpdate({ key: 'main' }, data, { upsert: true, returnDocument: 'after' });
     }
     writeJsonFile(ADMIN_FILE, { ...data, key: 'main' });
     return data;
@@ -183,7 +183,7 @@ const db = {
       updatedAt: new Date()
     };
     if (isConnected) {
-      await Topic.findOneAndUpdate({ userId: String(userId) }, record, { upsert: true, new: true });
+      await Topic.findOneAndUpdate({ userId: String(userId) }, record, { upsert: true, returnDocument: 'after' });
     }
     const topics = readJsonFile(TOPICS_FILE, {});
     topics[String(userId)] = record;
@@ -212,7 +212,7 @@ const db = {
         } else if (jsonChannels.length > 0) {
           // Seed MongoDB from JSON if empty
           Promise.all(jsonChannels.map(ch =>
-            Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, new: true })
+            Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, returnDocument: 'after' })
           )).catch(() => {});
         }
       }).catch(() => {});
@@ -229,7 +229,7 @@ const db = {
         const jsonChannels = readJsonFile(CHANNELS_FILE, []);
         if (jsonChannels.length > 0) {
           for (const ch of jsonChannels) {
-            await Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, new: true });
+            await Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, returnDocument: 'after' });
           }
           dbChannels = await Channel.find({});
         }
@@ -264,7 +264,7 @@ const db = {
     };
 
     if (isConnected) {
-      const ch = await Channel.findOneAndUpdate({ tag: cleanTag }, record, { upsert: true, new: true });
+      const ch = await Channel.findOneAndUpdate({ tag: cleanTag }, record, { upsert: true, returnDocument: 'after' });
       const all = await Channel.find({});
       writeJsonFile(CHANNELS_FILE, all.map(c => c.toObject()));
       return ch.toObject();

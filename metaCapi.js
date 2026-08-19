@@ -58,23 +58,35 @@ async function sendMetaCapiLead({
     userData.ln = [hashData(lastName)];
   }
 
-  // If a Click ID or Ad ID was passed in /start
+  // Extract fbclid / ad_id from start param
+  // Bridge page sends format: channelTag_fbclid_ACTUALFBCLID
+  // Direct Ads send format: channelTag_ADID or just channelTag
   let extractedAdId = null;
-  if (param) {
-    let extractedFbclid = null;
+  let extractedFbclid = null;
 
-    if (param.startsWith('fb_') || param.startsWith('fbclid_') || param.length > 25) {
+  if (param) {
+    // Format 1: tag_fbclid_ABCDEF (from bridge /go page — BEST quality)
+    const fbclidMatch = param.match(/_fbclid_(.+)$/);
+    if (fbclidMatch) {
+      extractedFbclid = fbclidMatch[1];
+    }
+    // Format 2: direct fbclid_ prefix
+    else if (param.startsWith('fbclid_') || param.startsWith('fb_')) {
       extractedFbclid = param.replace(/^fbclid_|^fb_/, '');
-    } else if (param.includes('_')) {
+    }
+    // Format 3: tag_ADID (numeric) from {{ad.id}}
+    else if (param.includes('_')) {
       const parts = param.split('_');
       const suffix = parts.slice(1).join('_');
-      if (suffix.startsWith('fb_') || suffix.startsWith('fbclid_') || suffix.length > 20) {
-        extractedFbclid = suffix.replace(/^fbclid_|^fb_/, '');
-      } else if (/^\d{8,}$/.test(suffix)) {
+      if (/^\d{8,}$/.test(suffix)) {
         extractedAdId = suffix;
+      } else if (suffix.length > 20) {
+        extractedFbclid = suffix;
       }
-    } else if (/^\d{8,}$/.test(param)) {
-      extractedAdId = param;
+    }
+    // Format 4: bare long string (fbclid itself)
+    else if (param.length > 25 && !/^\d+$/.test(param)) {
+      extractedFbclid = param;
     }
 
     if (extractedFbclid) {

@@ -50,6 +50,101 @@ app.get('/links', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'links.html'));
 });
 
+// Meta Ad Bridge Page — Captures fbclid in browser → fires Pixel → redirects to Telegram bot
+app.get('/go', (req, res) => {
+  const channelTag = (req.query.c || req.query.channel || 'ad1').trim();
+  const fbclid = (req.query.fbclid || '').trim();
+  const pixelId = process.env.META_PIXEL_ID || '3572072086292080';
+
+  // Resolve the channel from DB to get bot username
+  const channels = db.getChannels();
+  const channel = channels.find(c => c.tag === channelTag);
+  const botUsername = (channel && channel.botUsername)
+    ? channel.botUsername.replace(/^@/, '').trim()
+    : (process.env.TELEGRAM_BOT_USERNAME || 'southboookbot');
+
+  // Build Telegram start param: channelTag_fbclid (if fbclid present)
+  const startParam = fbclid ? `${channelTag}_fbclid_${fbclid}` : channelTag;
+  const telegramUrl = `https://t.me/${botUsername}?start=${encodeURIComponent(startParam)}`;
+  const sourceUrl = `${req.protocol}://${req.get('host')}/go?c=${channelTag}`;
+
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting...</title>
+  <!-- Meta Pixel Code -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+
+  fbq('init', '${pixelId}'${fbclid ? `, { "extern_id": "${fbclid}" }` : ''});
+  ${fbclid ? `fbq('set', 'agent', 'tmgoogletagmanager', '${pixelId}');` : ''}
+  fbq('track', 'PageView');
+  fbq('track', 'Lead', {
+    currency: 'INR',
+    value: 1.00,
+    content_name: '${(channel && channel.name) ? channel.name.replace(/'/g, "\\'") : channelTag}',
+    content_category: 'Telegram Ad Lead'
+  });
+
+  // Auto redirect to Telegram
+  window.location.href = '${telegramUrl}';
+  </script>
+  <noscript>
+    <img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=${pixelId}&ev=Lead&noscript=1"/>
+  </noscript>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0f1d;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+    .box { padding: 2rem; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid rgba(99,102,241,0.2);
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 1.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h2 { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem; }
+    p { color: rgba(255,255,255,0.5); font-size: 0.9rem; }
+    a { color: #6366f1; text-decoration: none; display: block; margin-top: 1.5rem; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="spinner"></div>
+    <h2>Opening Telegram...</h2>
+    <p>Aapko redirect kiya ja raha hai</p>
+    <a href="${telegramUrl}">Agar redirect na ho toh yahan click karein →</a>
+  </div>
+  <script>
+    setTimeout(function() {
+      window.location.href = '${telegramUrl}';
+    }, 800);
+  </script>
+</body>
+</html>`);
+});
+
 // Client Dedicated Chat Pages (No Admin Navbar)
 app.get('/client/:channelTag', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'client.html'));

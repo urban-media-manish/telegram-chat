@@ -1280,11 +1280,17 @@ function renderAdLinks(channels) {
     return;
   }
 
+  const baseUrl = window.location.origin; // e.g. https://telegram-chat-l174.onrender.com
+
   let html = '';
   for (const ch of channels) {
     const targetBot = (ch.botUsername ? ch.botUsername.replace(/^@/, '').trim() : '') || botUsername;
+
+    // ✅ NEW: Bridge URL — fires browser Pixel + captures fbclid for EXACT CPR
+    const bridgeUrl   = `${baseUrl}/go?c=${ch.tag}&fbclid={{fbclid}}`;
+
+    // Fallback: direct Telegram link (weaker attribution)
     const standardUrl = `https://t.me/${targetBot}?start=${ch.tag}`;
-    const dynamicUrl = `https://t.me/${targetBot}?start=${ch.tag}_{{ad.id}}`;
 
     html += `
       <div class="link-item-card">
@@ -1293,16 +1299,27 @@ function renderAdLinks(channels) {
           <span class="text-muted text-sm">Bot: <strong>@${escapeHtml(targetBot)}</strong> • Routes to: ${escapeHtml(ch.link)}</span>
         </div>
 
+        <!-- PRIMARY: Bridge URL for Meta Ads (EXACT CPR) -->
         <div class="link-input-group">
-          <label>Meta Ad Website URL (Recommended for FB/Insta Ads):</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;">
+            <span style="background:#22c55e;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:99px;">✅ META ADS MEIN YAHI LAGAO</span>
+            Website URL — Pixel + fbclid Capture (Exact CPR):
+          </label>
           <div class="copy-input-wrap">
-            <input type="text" readonly value="${dynamicUrl}" />
-            <button class="btn btn-primary btn-sm" onclick="copyToClipboard('${dynamicUrl}')">Copy URL</button>
+            <input type="text" readonly value="${bridgeUrl}" />
+            <button class="btn btn-primary btn-sm" onclick="copyToClipboard('${bridgeUrl}')">Copy URL</button>
           </div>
+          <p style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">
+            💡 Facebook Ads Manager → Ad → Website URL field mein yeh paste karo. Meta khud <code>{{fbclid}}</code> replace karega.
+          </p>
         </div>
 
+        <!-- SECONDARY: Direct Telegram (no pixel, backup only) -->
         <div class="link-input-group mt-2">
-          <label>Direct Simple Link:</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;">
+            <span style="background:#6b7280;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:99px;">BACKUP</span>
+            Direct Telegram Link (Pixel fire nahi hoga):
+          </label>
           <div class="copy-input-wrap">
             <input type="text" readonly value="${standardUrl}" />
             <button class="btn btn-outline btn-sm" onclick="copyToClipboard('${standardUrl}')">Copy URL</button>

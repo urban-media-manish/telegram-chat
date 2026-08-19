@@ -59,16 +59,33 @@ async function sendMetaCapiLead({
   }
 
   // If a Click ID or Ad ID was passed in /start
+  let extractedAdId = null;
   if (param) {
+    let extractedFbclid = null;
+
     if (param.startsWith('fb_') || param.startsWith('fbclid_') || param.length > 25) {
-      const cleanFbclid = param.replace(/^fbclid_|^fb_/, '');
-      userData.fbc = `fb.1.${Math.floor(Date.now() / 1000)}.${cleanFbclid}`;
+      extractedFbclid = param.replace(/^fbclid_|^fb_/, '');
+    } else if (param.includes('_')) {
+      const parts = param.split('_');
+      const suffix = parts.slice(1).join('_');
+      if (suffix.startsWith('fb_') || suffix.startsWith('fbclid_') || suffix.length > 20) {
+        extractedFbclid = suffix.replace(/^fbclid_|^fb_/, '');
+      } else if (/^\d{8,}$/.test(suffix)) {
+        extractedAdId = suffix;
+      }
+    } else if (/^\d{8,}$/.test(param)) {
+      extractedAdId = param;
+    }
+
+    if (extractedFbclid) {
+      userData.fbc = `fb.1.${Math.floor(Date.now() / 1000)}.${extractedFbclid}`;
     }
   }
 
   const now = Math.floor(Date.now() / 1000);
   const eventId = `lead_${userId || 'user'}_${now}`;
-  const sourceUrl = `https://t.me/southboookbot?start=${encodeURIComponent(param || 'ad1')}`;
+  const botUser = process.env.TELEGRAM_BOT_USERNAME || 'southboookbot';
+  const sourceUrl = `https://t.me/${botUser}?start=${encodeURIComponent(param || 'ad1')}`;
 
   const pageViewEvent = {
     event_name: 'PageView',
@@ -79,7 +96,8 @@ async function sendMetaCapiLead({
     user_data: userData,
     custom_data: {
       page_title: channelName || 'Telegram Ad Channel',
-      start_param: param || 'none'
+      start_param: param || 'none',
+      ad_id: extractedAdId || undefined
     }
   };
 
@@ -98,7 +116,8 @@ async function sendMetaCapiLead({
       lead_source: 'Telegram Multi-Channel Bot',
       channel_name: channelName || 'Default',
       telegram_username: username ? `@${username}` : undefined,
-      start_param: param || 'none'
+      start_param: param || 'none',
+      ad_id: extractedAdId || undefined
     }
   };
 
@@ -107,8 +126,8 @@ async function sendMetaCapiLead({
     access_token: accessToken
   };
 
-  // 100% Pure Live Production Mode (No test code, so Meta attributes live CPR to Ads Manager)
-  if (customPixelId && customAccessToken && testEventCode && testEventCode.trim() !== '') {
+  // Only attach test_event_code if explicitly set in .env for debugging
+  if (testEventCode && testEventCode.trim() !== '') {
     payload.test_event_code = testEventCode.trim();
   }
 

@@ -556,6 +556,17 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
       console.error('\n❌ Telegram Polling Error: Invalid Bot Token.\n');
     } else if (error.code === 'ETELEGRAM' && error.message.includes('409 Conflict')) {
       // 409 conflict happens when another instance or redeploy is starting - ignore silently
+    } else if (
+      error.code === 'ECONNRESET' ||
+      (error.message && (
+        error.message.includes('connection reset by peer') ||
+        error.message.includes('stream reading error') ||
+        error.message.includes('ECONNREFUSED') ||
+        error.message.includes('socket hang up') ||
+        error.message.includes('ETIMEDOUT')
+      ))
+    ) {
+      // Network blip — transient error, bot will auto-retry. Ignore silently.
     } else {
       console.error('⚠️ Telegram Polling Error:', error.message);
     }
@@ -587,10 +598,10 @@ function startBotInstance(token, specificChannel = null) {
   try {
     const bot = new TelegramBot(cleanToken, {
       polling: {
-        interval: 100, // High-speed 100ms instant update
+        interval: 1000, // 1s polling — balanced speed vs connection stability
         autoStart: true,
         params: {
-          timeout: 5
+          timeout: 30  // Long-poll 30s — reduces reconnect frequency
         }
       }
     });

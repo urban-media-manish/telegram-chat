@@ -103,7 +103,7 @@ async function sendMetaCapiLead({
     event_name: 'PageView',
     event_time: now,
     event_id: `pv_${eventId}`,
-    action_source: 'website',
+    action_source: 'chat',
     event_source_url: sourceUrl,
     user_data: userData,
     custom_data: {
@@ -117,7 +117,7 @@ async function sendMetaCapiLead({
     event_name: 'Lead',
     event_time: now,
     event_id: eventId,
-    action_source: 'website',
+    action_source: 'chat',
     event_source_url: sourceUrl,
     user_data: userData,
     custom_data: {

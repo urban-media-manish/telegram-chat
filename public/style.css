@@ -380,32 +380,73 @@ body {
   background: transparent;
 }
 
-/* Mobile Header (Drawer Toggle) */
+/* Mobile Header (Sleek Modern Luxury App Bar matching Screenshot 2) */
 .mobile-app-header {
   display: none;
   align-items: center;
   justify-content: space-between;
-  padding: 0.65rem 1rem;
-  background: rgba(11, 16, 30, 0.95);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  padding: 0.65rem 1.15rem;
+  background: rgba(9, 12, 22, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  z-index: 100;
+  z-index: 120;
   flex-shrink: 0;
 }
 
 .btn-hamburger {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.2rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-hamburger:hover, .btn-hamburger:active {
+  background: rgba(255, 255, 255, 0.12) !important;
+  transform: scale(0.96);
+}
+
+.mobile-brand-center {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  cursor: pointer;
+  gap: 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.mobile-brand-center .brand-bolt {
+  font-size: 1.3rem;
+  filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.6));
+}
+
+.btn-lock-mobile {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border: 1px solid rgba(239, 68, 68, 0.28) !important;
+  color: #ffffff !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.1rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-lock-mobile:hover, .btn-lock-mobile:active {
+  background: rgba(239, 68, 68, 0.22) !important;
+  transform: scale(0.96);
 }
 
 /* Mobile Sidebar Drawer Overlay */

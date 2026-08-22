@@ -166,9 +166,31 @@ function writeJsonFile(filePath, data) {
   }
 }
 
-// ─── In-Memory Reply Map & Caches ─────────────────────────────────────────────
-const replyMap = new Map();
-let cachedChannels = null;
+// ─── Time Window Resolver for Date-Wise Analytics ──────────────────────────
+function resolveTimeWindow(range, startDate, endDate) {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const endOfToday = startOfToday + 86400000 - 1;
+
+  if (range === 'today') {
+    return { start: startOfToday, end: endOfToday, label: 'Today' };
+  } else if (range === 'yesterday') {
+    const startOfYest = startOfToday - 86400000;
+    const endOfYest = startOfToday - 1;
+    return { start: startOfYest, end: endOfYest, label: 'Yesterday' };
+  } else if (range === '7d') {
+    const start7d = startOfToday - 6 * 86400000;
+    return { start: start7d, end: endOfToday, label: 'Last 7 Days' };
+  } else if (range === '30d') {
+    const start30d = startOfToday - 29 * 86400000;
+    return { start: start30d, end: endOfToday, label: 'Last 30 Days' };
+  } else if (range === 'custom' && (startDate || endDate)) {
+    const s = startDate ? new Date(startDate).getTime() : 0;
+    const e = endDate ? (new Date(endDate).getTime() + 86400000 - 1) : Date.now();
+    return { start: s, end: e, label: 'Custom Range' };
+  }
+  return { start: 0, end: Infinity, label: 'All Time' };
+}
 
 // ─── DB Object ───────────────────────────────────────────────────────────────
 const db = {
@@ -352,11 +374,25 @@ const db = {
     return true;
   },
 
-  getLeads(limit = 100) {
+  getLeads(limit = 100, options = {}) {
     const leads = readJsonFile(LEADS_FILE, []);
+    const range = options.range || 'all';
+    const timeWindow = resolveTimeWindow(range, options.startDate, options.endDate);
+    
+    let filtered = leads;
+    if (timeWindow.start > 0 || timeWindow.end < Infinity) {
+      filtered = leads.filter(l => {
+        const t = new Date(l.createdAt || 0).getTime();
+        return t >= timeWindow.start && t <= timeWindow.end;
+      });
+    }
+    if (options.channel && options.channel !== 'all') {
+      filtered = filtered.filter(l => l.channelTag === options.channel);
+    }
+
     const uniqueMap = new Map();
-    for (let i = leads.length - 1; i >= 0; i--) {
-      const l = leads[i];
+    for (let i = filtered.length - 1; i >= 0; i--) {
+      const l = filtered[i];
       const uid = String(l.userId) + '_' + (l.channelTag || 'default');
       if (!uniqueMap.has(uid)) uniqueMap.set(uid, l);
     }
@@ -365,16 +401,25 @@ const db = {
     return list.slice(0, limit);
   },
 
-  async getLeadsAsync(limit = 100) {
+  async getLeadsAsync(limit = 100, options = {}) {
     try {
       if (await connectDB()) {
-        const leads = await Lead.find({}).sort({ lastActiveAt: -1 }).limit(limit).lean();
+        const range = options.range || 'all';
+        const timeWindow = resolveTimeWindow(range, options.startDate, options.endDate);
+        const query = {};
+        if (timeWindow.start > 0 || timeWindow.end < Infinity) {
+          query.createdAt = { $gte: new Date(timeWindow.start), $lte: new Date(timeWindow.end) };
+        }
+        if (options.channel && options.channel !== 'all') {
+          query.channelTag = options.channel;
+        }
+        const leads = await Lead.find(query).sort({ lastActiveAt: -1 }).limit(limit).lean();
         return leads;
       }
     } catch (e) {
       console.warn('⚠️ getLeadsAsync fallback to JSON:', e.message);
     }
-    return this.getLeads(limit);
+    return this.getLeads(limit, options);
   },
 
   async addLead(leadData) {
@@ -734,7 +779,7 @@ const db = {
     return userMsgs.slice(-limit);
   },
 
-  getStats() {
+  getStats(options = {}) {
     const leads = readJsonFile(LEADS_FILE, []);
     const channels = this.getChannels();
     const admin = this.getAdminConfig();
@@ -742,6 +787,10 @@ const db = {
     const clicks = readJsonFile(CLICKS_FILE, []);
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+    const range = options.range || 'all';
+    const timeWindow = resolveTimeWindow(range, options.startDate, options.endDate);
+
     let todayLeads = 0, successfulCapi = 0, failedCapi = 0, channelJoins = 0, activeMembers = 0, leftMembers = 0;
     const channelCounts = {};
     const channelTodayCounts = {};
@@ -749,15 +798,21 @@ const db = {
     const hourlyJoins = new Array(24).fill(0);
     const deviceStats = { iOS: 0, Android: 0, Desktop: 0 };
 
-    for (const lead of leads) {
+    const filteredLeads = leads.filter(l => {
+      const t = new Date(l.createdAt || 0).getTime();
+      return t >= timeWindow.start && t <= timeWindow.end;
+    });
+
+    for (const lead of filteredLeads) {
       const date = new Date(lead.createdAt);
       const time = date.getTime();
       const isToday = time >= startOfToday;
       if (isToday) {
         todayLeads++;
-        const hr = date.getHours();
-        hourlyJoins[hr] = (hourlyJoins[hr] || 0) + 1;
       }
+      const hr = date.getHours();
+      hourlyJoins[hr] = (hourlyJoins[hr] || 0) + 1;
+
       if (lead.capiStatus === 'success') successfulCapi++;
       if (lead.capiStatus === 'failed') failedCapi++;
       if (lead.joinType === 'channel_join') {
@@ -777,7 +832,12 @@ const db = {
     const channelDeviceStats = { iOS: 0, Android: 0, Desktop: 0 };
     const botDeviceStats = { iOS: 0, Android: 0, Desktop: 0 };
 
-    for (const clk of clicks) {
+    const filteredClicks = clicks.filter(c => {
+      const t = new Date(c.createdAt || 0).getTime();
+      return t >= timeWindow.start && t <= timeWindow.end;
+    });
+
+    for (const clk of filteredClicks) {
       const dev = clk.device || 'Android';
       const tag = (clk.channelTag || '').toLowerCase();
       const isChan = channelTagsSet.has(tag);
@@ -800,16 +860,16 @@ const db = {
     }
 
     const uniqueConvKeys = new Set();
-    for (const l of leads) {
+    for (const l of filteredLeads) {
       uniqueConvKeys.add(`${l.userId}_${l.channelTag || 'default'}`);
     }
     for (const m of messages) {
       uniqueConvKeys.add(`${m.userId}_${m.channelTag || 'default'}`);
     }
 
-    const totalClicks = clicks.length;
+    const totalClicks = filteredClicks.length;
     const conversionRate = channelClicks > 0 ? Math.round((channelJoins / channelClicks) * 100) : 0;
-    const botLeads = leads.filter(l => l.joinType !== 'channel_join').length;
+    const botLeads = filteredLeads.filter(l => l.joinType !== 'channel_join').length;
     const botConversionRate = botClicks > 0 ? Math.round((botLeads / botClicks) * 100) : 0;
 
     const channelBreakdown = channels.map(c => ({
@@ -822,7 +882,10 @@ const db = {
     }));
 
     return {
-      totalLeads: leads.length,
+      selectedRange: range,
+      timeWindowLabel: timeWindow.label,
+      totalLeads: filteredLeads.length,
+      allTimeTotalLeads: leads.length,
       botLeads,
       channelJoins,
       todayLeads,
@@ -847,15 +910,25 @@ const db = {
     };
   },
 
-  async getStatsAsync() {
+  async getStatsAsync(options = {}) {
     try {
       if (await connectDB()) {
-        const leads = await Lead.find({}).lean();
-        const clicks = await ClickLog.find({}).limit(5000).lean();
         const channels = this.getChannels();
         const admin = this.getAdminConfig();
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+        const range = options.range || 'all';
+        const timeWindow = resolveTimeWindow(range, options.startDate, options.endDate);
+
+        const dateQuery = (timeWindow.start > 0 || timeWindow.end < Infinity)
+          ? { createdAt: { $gte: new Date(timeWindow.start), $lte: new Date(timeWindow.end) } }
+          : {};
+
+        const leads = await Lead.find(dateQuery).lean();
+        const allLeadsCount = await Lead.countDocuments({});
+        const clicks = await ClickLog.find(dateQuery).limit(5000).lean();
+
         let todayLeads = 0, successfulCapi = 0, failedCapi = 0, channelJoins = 0, activeMembers = 0, leftMembers = 0;
         const channelCounts = {};
         const channelTodayCounts = {};
@@ -874,9 +947,10 @@ const db = {
           const isToday = time >= startOfToday;
           if (isToday) {
             todayLeads++;
-            const hr = date.getHours();
-            hourlyJoins[hr] = (hourlyJoins[hr] || 0) + 1;
           }
+          const hr = date.getHours();
+          hourlyJoins[hr] = (hourlyJoins[hr] || 0) + 1;
+
           if (lead.capiStatus === 'success') successfulCapi++;
           if (lead.capiStatus === 'failed') failedCapi++;
           if (lead.joinType === 'channel_join') {
@@ -930,7 +1004,10 @@ const db = {
         }));
 
         return {
+          selectedRange: range,
+          timeWindowLabel: timeWindow.label,
           totalLeads: leads.length,
+          allTimeTotalLeads: allLeadsCount,
           botLeads,
           channelJoins,
           todayLeads,
@@ -957,7 +1034,7 @@ const db = {
     } catch (e) {
       console.warn('⚠️ getStatsAsync fallback to JSON:', e.message);
     }
-    return this.getStats();
+    return this.getStats(options);
   },
 
   async markLeadLeft(userId, chatId) {

@@ -115,6 +115,31 @@
 
       <!-- Main Dashboard Content -->
       <main class="dashboard-container">
+
+    <!-- 📅 Luxury Date & Range Filter Bar -->
+    <div class="date-filter-bar">
+      <div style="display:flex; align-items:center; gap:0.6rem;">
+        <span style="font-size:1.15rem;">📅</span>
+        <span style="font-size:0.85rem; font-weight:800; color:#fff; letter-spacing:0.02em;">DATE RANGE:</span>
+        <span id="activeDateRangeLabel" style="font-size:0.75rem; font-weight:700; background:rgba(139,92,246,0.2); color:#c084fc; padding:3px 10px; border-radius:99px; border:1px solid rgba(139,92,246,0.4);">All Time</span>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+        <div class="date-pills-group">
+          <button class="date-pill-btn active" id="pillRangeAll" onclick="selectDateRange('all')">🌐 All Time</button>
+          <button class="date-pill-btn" id="pillRangeToday" onclick="selectDateRange('today')">⚡ Today</button>
+          <button class="date-pill-btn" id="pillRangeYesterday" onclick="selectDateRange('yesterday')">📅 Yesterday</button>
+          <button class="date-pill-btn" id="pillRange7d" onclick="selectDateRange('7d')">📊 Last 7 Days</button>
+          <button class="date-pill-btn" id="pillRange30d" onclick="selectDateRange('30d')">🗓️ Last 30 Days</button>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:0.35rem; margin-left:0.25rem;">
+          <input type="date" id="customStartDate" onchange="applyCustomDateRange()" style="background:rgba(255,255,255,0.05); border:1px solid rgba(139,92,246,0.3); border-radius:8px; padding:0.35rem 0.5rem; font-size:0.75rem; color:#fff; outline:none;" title="From Date">
+          <span style="color:rgba(255,255,255,0.4); font-size:0.75rem;">to</span>
+          <input type="date" id="customEndDate" onchange="applyCustomDateRange()" style="background:rgba(255,255,255,0.05); border:1px solid rgba(139,92,246,0.3); border-radius:8px; padding:0.35rem 0.5rem; font-size:0.75rem; color:#fff; outline:none;" title="To Date">
+        </div>
+      </div>
+    </div>
     
     <!-- KPI Metrics Grid -->
     <section class="metrics-grid">

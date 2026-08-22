@@ -1014,13 +1014,80 @@ function formatTimeOnly(dateStr) {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-// ============================================================
-// 📊 STATS, LEADS, CHANNELS, & LINKS LOGIC
-// ============================================================
+// ─── Date Range Filtering Engine ─────────────────────────────────────────────
+window.currentDateRange = 'all';
+window.currentStartDate = '';
+window.currentEndDate = '';
+
+window.selectDateRange = function(range) {
+  window.currentDateRange = range;
+  window.currentStartDate = '';
+  window.currentEndDate = '';
+
+  const startInp = document.getElementById('customStartDate');
+  const endInp = document.getElementById('customEndDate');
+  if (startInp) startInp.value = '';
+  if (endInp) endInp.value = '';
+
+  const labels = {
+    all: 'All Time',
+    today: 'Today',
+    yesterday: 'Yesterday',
+    '7d': 'Last 7 Days',
+    '30d': 'Last 30 Days'
+  };
+
+  const activeLabelEl = document.getElementById('activeDateRangeLabel');
+  if (activeLabelEl) activeLabelEl.textContent = labels[range] || range;
+
+  const pillIds = ['pillRangeAll', 'pillRangeToday', 'pillRangeYesterday', 'pillRange7d', 'pillRange30d'];
+  pillIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      if ((range === 'all' && id === 'pillRangeAll') ||
+          (range === 'today' && id === 'pillRangeToday') ||
+          (range === 'yesterday' && id === 'pillRangeYesterday') ||
+          (range === '7d' && id === 'pillRange7d') ||
+          (range === '30d' && id === 'pillRange30d')) {
+        el.classList.add('active');
+      } else {
+        el.classList.remove('active');
+      }
+    }
+  });
+
+  loadStats();
+  loadLeads();
+};
+
+window.applyCustomDateRange = function() {
+  const startVal = document.getElementById('customStartDate')?.value;
+  const endVal = document.getElementById('customEndDate')?.value;
+
+  if (startVal || endVal) {
+    window.currentDateRange = 'custom';
+    window.currentStartDate = startVal || '';
+    window.currentEndDate = endVal || '';
+
+    const pillIds = ['pillRangeAll', 'pillRangeToday', 'pillRangeYesterday', 'pillRange7d', 'pillRange30d'];
+    pillIds.forEach(id => document.getElementById(id)?.classList.remove('active'));
+
+    const activeLabelEl = document.getElementById('activeDateRangeLabel');
+    if (activeLabelEl) {
+      activeLabelEl.textContent = `${startVal || '...'} to ${endVal || '...'}`;
+    }
+
+    loadStats();
+    loadLeads();
+  }
+};
 
 async function loadStats() {
   try {
-    const res = await fetch('/api/stats');
+    const range = window.currentDateRange || 'all';
+    const sDate = window.currentStartDate || '';
+    const eDate = window.currentEndDate || '';
+    const res = await fetch(`/api/stats?range=${encodeURIComponent(range)}&startDate=${encodeURIComponent(sDate)}&endDate=${encodeURIComponent(eDate)}`);
     const json = await res.json();
     if (json.success) {
       const stats = json.data;
@@ -1059,22 +1126,23 @@ async function loadStats() {
             destinationType: isChan ? 'channel' : 'bot',
             totalJoins: stats.channelCounts?.[ch.tag] || 0,
             todayJoins: stats.channelTodayCounts?.[ch.tag] || 0,
-            capiSuccess: stats.channelCounts?.[ch.tag] || 0
+            capiSuccess: stats.channelBreakdown?.find(b => b.tag === ch.tag)?.capiSuccess || 0,
+            link: ch.link || ''
           });
         }
 
-        if (stats.channelCounts) {
-          for (const [tag, count] of Object.entries(stats.channelCounts)) {
-            if (!tagsSeen.has(tag)) {
-              breakdown.push({
-                tag: tag,
-                name: tag === 'meta_ad' ? 'Southboookbot' : (tag === 'ad1' ? 'South Boook' : tag),
-                destinationType: 'bot',
-                totalJoins: count,
-                todayJoins: stats.channelTodayCounts?.[tag] || 0,
-                capiSuccess: count
-              });
-            }
+        // Catch any other dynamic channel tags found in DB
+        for (const [tag, count] of Object.entries(stats.channelCounts || {})) {
+          if (!tagsSeen.has(tag)) {
+            breakdown.push({
+              tag: tag,
+              name: tag === 'ad1' ? 'South Boook' : tag.toUpperCase(),
+              destinationType: 'bot',
+              totalJoins: count,
+              todayJoins: stats.channelTodayCounts?.[tag] || 0,
+              capiSuccess: stats.channelBreakdown?.find(b => b.tag === tag)?.capiSuccess || 0,
+              link: ''
+            });
           }
         }
 
@@ -1178,49 +1246,52 @@ function renderFilteredBreakdownCards() {
   }
 
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="text-muted text-sm py-4 text-center" style="grid-column: 1/-1;">No accounts match the current filter.</div>`;
+    container.innerHTML = `
+      <div class="empty-state py-4 text-center" style="grid-column: 1/-1;">
+        <p class="text-muted" style="font-size:0.85rem;">No accounts found matching filter.</p>
+      </div>
+    `;
     return;
   }
 
   let html = '';
   for (const item of filtered) {
     const isChan = item.destinationType === 'channel';
-    const typeBadge = isChan
-      ? `<span style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3); font-size:11px; padding:2px 7px; border-radius:4px; font-weight:700;">📢 Telegram Channel</span>`
-      : `<span style="background:rgba(168,85,247,0.15); color:#c084fc; border:1px solid rgba(168,85,247,0.3); font-size:11px; padding:2px 7px; border-radius:4px; font-weight:700;">💬 Bot Live Chat</span>`;
-
-    const metricUnit = isChan ? 'subscribers' : 'bot leads';
+    const typeLabel = isChan ? 'subscribers' : 'bot leads';
+    const typeBadge = isChan 
+      ? '<span style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:9px;padding:1px 5px;border-radius:4px;">📢 Telegram Channel</span>'
+      : '<span style="background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3);font-size:9px;padding:1px 5px;border-radius:4px;">💬 Bot Live Chat</span>';
 
     html += `
-      <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:0.9rem 1.1rem; display:flex; flex-direction:column; gap:0.45rem; transition:transform 0.2s, border-color 0.2s;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-weight:700; font-size:0.9rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:135px;" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
-          <span class="tag-pill" style="font-size:0.65rem;">${escapeHtml(item.tag)}</span>
+      <div class="channel-stat-card" style="background:rgba(20,14,40,0.85);border:1px solid rgba(139,92,246,0.2);border-radius:12px;padding:0.75rem 1rem;position:relative;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.4rem;">
+          <h4 style="font-size:0.85rem;font-weight:700;color:#fff;margin:0;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</h4>
+          <span style="font-size:9px;font-weight:800;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);padding:1px 5px;border-radius:4px;text-transform:uppercase;">${escapeHtml(item.tag)}</span>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:0.15rem;">
-          <div style="font-size:1.25rem; font-weight:800; color:${isChan ? '#38bdf8' : '#a78bfa'};">${item.totalJoins} <span style="font-size:0.75rem; font-weight:600; color:rgba(255,255,255,0.5);">${metricUnit}</span></div>
-          <div style="font-size:0.8rem; font-weight:700; color:#22c55e;">+${item.todayJoins} today</div>
+        <div style="display:flex;align-items:baseline;gap:0.4rem;margin-bottom:0.5rem;">
+          <span style="font-size:1.4rem;font-weight:800;color:#fff;">${item.totalJoins}</span>
+          <span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">${typeLabel}</span>
+          <span style="font-size:0.7rem;font-weight:700;color:#10b981;margin-left:auto;">+${item.todayJoins} today</span>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.05); padding-top:0.4rem; margin-top:0.15rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.05);padding-top:0.4rem;">
           ${typeBadge}
-          <span style="color:#22c55e; font-size:0.75rem; font-weight:600;">✓ ${item.capiSuccess} Synced</span>
+          <span style="font-size:9px;color:#10b981;font-weight:600;">✓ ${item.capiSuccess} Synced</span>
         </div>
       </div>
     `;
   }
-
   container.innerHTML = html;
 }
 
 async function loadLeads() {
-  const tbody = document.getElementById('leadsTableBody');
-  if (!tbody) return;
-
   const search = document.getElementById('searchLeads')?.value || '';
   const channel = document.getElementById('channelFilter')?.value || 'all';
+  const range = window.currentDateRange || 'all';
+  const sDate = window.currentStartDate || '';
+  const eDate = window.currentEndDate || '';
 
   try {
-    const res = await fetch(`/api/leads?search=${encodeURIComponent(search)}&channel=${encodeURIComponent(channel)}`);
+    const res = await fetch(`/api/leads?search=${encodeURIComponent(search)}&channel=${encodeURIComponent(channel)}&range=${encodeURIComponent(range)}&startDate=${encodeURIComponent(sDate)}&endDate=${encodeURIComponent(eDate)}`);
     const json = await res.json();
     if (json.success) {
       renderLeadsTable(json.data);

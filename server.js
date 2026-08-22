@@ -260,19 +260,22 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// 1. Get Dashboard Stats
+// 1. Get Dashboard Stats (Supports date range filtering)
 app.get('/api/stats', async (req, res) => {
-  const stats = await db.getStatsAsync();
+  const stats = await db.getStatsAsync(req.query);
   res.json({ success: true, data: stats });
 });
 
-// 2. Get Leads (with optional search/filter)
+// 2. Get Leads (with date range & channel filter)
 app.get('/api/leads', async (req, res) => {
-  const limit = parseInt(req.query.limit) || 150;
+  const limit = parseInt(req.query.limit) || 200;
   const channel = req.query.channel;
   const search = (req.query.search || '').toLowerCase();
+  const range = req.query.range || 'all';
+  const startDate = req.query.startDate;
+  const endDate = req.query.endDate;
 
-  let leads = await db.getLeadsAsync(500);
+  let leads = await db.getLeadsAsync(500, { channel, range, startDate, endDate });
 
   if (channel && channel !== 'all') {
     leads = leads.filter(l => l.channelTag === channel);

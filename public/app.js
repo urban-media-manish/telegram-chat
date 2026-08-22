@@ -1094,28 +1094,37 @@ async function loadStats() {
     const json = await res.json();
     if (json.success) {
       const stats = json.data;
-      const todayEl = document.getElementById('kpiTodayLeads');
-      if (todayEl) todayEl.textContent = stats.todayLeads || 0;
 
-      const totalEl = document.getElementById('kpiTotalLeads');
-      if (totalEl) totalEl.textContent = stats.totalLeads || 0;
+      // 1. Today's Bot Starts
+      const todayVal = stats.todayLeads || 0;
+      const todayEl = document.getElementById('todayLeadsCount') || document.getElementById('kpiTodayLeads');
+      if (todayEl) todayEl.textContent = todayVal;
 
-      const activeChatsEl = document.getElementById('kpiActiveChats');
-      if (activeChatsEl && stats.activeChats !== undefined) {
-        activeChatsEl.textContent = stats.activeChats;
+      // 2. Active Conversations
+      const activeChatsEl = document.getElementById('activeChatsCount') || document.getElementById('kpiActiveChats');
+      if (activeChatsEl) {
+        activeChatsEl.textContent = stats.activeChats !== undefined ? stats.activeChats : 0;
       }
 
-      const syncRateEl = document.getElementById('kpiSyncRate');
-      const syncCountEl = document.getElementById('kpiSyncCount');
-      if (syncRateEl && syncCountEl) {
-        const totalSyncAttempts = (stats.successfulCapi || 0) + (stats.failedCapi || 0);
-        const rate = totalSyncAttempts > 0 ? Math.round((stats.successfulCapi / totalSyncAttempts) * 100) : 100;
-        syncRateEl.textContent = `${rate}%`;
-        syncCountEl.textContent = `${stats.successfulCapi || 0} Synced / ${stats.failedCapi || 0} Failed`;
-      }
+      // 3. Total Bot Leads
+      const botLeadsVal = stats.botLeads !== undefined ? stats.botLeads : (stats.totalLeads || 0);
+      const totalEl = document.getElementById('totalLeadsCount') || document.getElementById('kpiTotalLeads');
+      if (totalEl) totalEl.textContent = botLeadsVal;
 
-      // Render Channel-wise Live Performance Breakdown (Scalable for 40+ Channels)
-      const chStatsCont = document.getElementById('channelStatsContainer');
+      // 4. Meta CAPI Sync Rate
+      const succ = stats.successfulCapi || 0;
+      const fail = stats.failedCapi || 0;
+      const totalSync = succ + fail;
+      const rate = totalSync > 0 ? Math.round((succ / totalSync) * 100) : 100;
+
+      const syncRateEl = document.getElementById('syncRateValue') || document.getElementById('kpiSyncRate');
+      if (syncRateEl) syncRateEl.textContent = `${rate}%`;
+
+      const syncSubtextEl = document.getElementById('capiStatsSubtext') || document.getElementById('kpiSyncCount');
+      if (syncSubtextEl) syncSubtextEl.textContent = `${succ} Synced to Meta Pixel`;
+
+      // Render Bot Accounts Live Performance Breakdown
+      const chStatsCont = document.getElementById('channelBreakdownContainer') || document.getElementById('channelStatsContainer');
       if (chStatsCont) {
         const tagsSeen = new Set();
         const breakdown = [];
@@ -1285,19 +1294,15 @@ window.filterBreakdownCards = function() {
 };
 
 function renderFilteredBreakdownCards() {
-  const container = document.getElementById('channelStatsContainer');
+  const container = document.getElementById('channelBreakdownContainer') || document.getElementById('channelStatsContainer');
   if (!container) return;
 
   const data = window.currentBreakdownData || [];
-  const query = (document.getElementById('searchBreakdown')?.value || '').toLowerCase().trim();
-  const filter = window.currentBreakdownFilter || 'all';
-
-  let filtered = data;
-  if (filter === 'channel') {
-    filtered = filtered.filter(i => i.destinationType === 'channel');
-  } else if (filter === 'bot') {
-    filtered = filtered.filter(i => i.destinationType === 'bot');
-  }
+  const query = (document.getElementById('searchChannelsBreakdown')?.value || document.getElementById('searchBreakdown')?.value || '').toLowerCase().trim();
+  
+  // On bot leads page, filter strictly to Bot Accounts!
+  const isLeadsPage = document.body.getAttribute('data-page') === 'leads';
+  let filtered = isLeadsPage ? data.filter(i => i.destinationType === 'bot') : data;
 
   if (query) {
     filtered = filtered.filter(i => 
@@ -1309,7 +1314,7 @@ function renderFilteredBreakdownCards() {
   if (filtered.length === 0) {
     container.innerHTML = `
       <div class="empty-state py-4 text-center" style="grid-column: 1/-1;">
-        <p class="text-muted" style="font-size:0.85rem;">No accounts found matching filter.</p>
+        <p class="text-muted" style="font-size:0.85rem;">No active bot accounts found.</p>
       </div>
     `;
     return;
@@ -1317,25 +1322,19 @@ function renderFilteredBreakdownCards() {
 
   let html = '';
   for (const item of filtered) {
-    const isChan = item.destinationType === 'channel';
-    const typeLabel = isChan ? 'subscribers' : 'bot leads';
-    const typeBadge = isChan 
-      ? '<span style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:9px;padding:1px 5px;border-radius:4px;">📢 Telegram Channel</span>'
-      : '<span style="background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3);font-size:9px;padding:1px 5px;border-radius:4px;">💬 Bot Live Chat</span>';
-
     html += `
-      <div class="channel-stat-card" style="background:rgba(20,14,40,0.85);border:1px solid rgba(139,92,246,0.2);border-radius:12px;padding:0.75rem 1rem;position:relative;overflow:hidden;">
+      <div class="channel-stat-card" style="background:rgba(20,14,40,0.85);border:1px solid rgba(168,85,247,0.25);border-radius:12px;padding:0.75rem 1rem;position:relative;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.4rem;">
           <h4 style="font-size:0.85rem;font-weight:700;color:#fff;margin:0;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</h4>
-          <span style="font-size:9px;font-weight:800;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);padding:1px 5px;border-radius:4px;text-transform:uppercase;">${escapeHtml(item.tag)}</span>
+          <span style="font-size:9px;font-weight:800;background:rgba(168,85,247,0.15);color:#c084fc;padding:1px 5px;border-radius:4px;text-transform:uppercase;">${escapeHtml(item.tag)}</span>
         </div>
         <div style="display:flex;align-items:baseline;gap:0.4rem;margin-bottom:0.5rem;">
-          <span style="font-size:1.4rem;font-weight:800;color:#fff;">${item.totalJoins}</span>
-          <span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">${typeLabel}</span>
+          <span style="font-size:1.4rem;font-weight:800;color:#c084fc;">${item.totalJoins}</span>
+          <span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">Bot Leads</span>
           <span style="font-size:0.7rem;font-weight:700;color:#10b981;margin-left:auto;">+${item.todayJoins} today</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.05);padding-top:0.4rem;">
-          ${typeBadge}
+          <span style="background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3);font-size:9px;padding:1px 5px;border-radius:4px;">💬 Direct DMs</span>
           <span style="font-size:9px;color:#10b981;font-weight:600;">✓ ${item.capiSuccess} Synced</span>
         </div>
       </div>
@@ -1864,15 +1863,26 @@ window.copyClientChatLink = function(tag, pin = '1234') {
 
 function renderChannelFilter(channels) {
   const filter = document.getElementById('channelFilter');
-  if (!filter) return;
-
-  const currentVal = filter.value;
-  let html = '<option value="all">All Accounts / Ads</option>';
-  for (const ch of channels) {
-    html += `<option value="${ch.tag}">${escapeHtml(ch.name)} (${ch.tag})</option>`;
+  if (filter) {
+    const currentVal = filter.value;
+    let html = '<option value="all">All Bot Accounts</option>';
+    for (const ch of channels.filter(c => c.destinationType !== 'channel')) {
+      html += `<option value="${ch.tag}">${escapeHtml(ch.name)} (${ch.tag})</option>`;
+    }
+    filter.innerHTML = html;
+    filter.value = currentVal || 'all';
   }
-  filter.innerHTML = html;
-  filter.value = currentVal || 'all';
+
+  const chanFilter = document.getElementById('channelSelectFilterOnly');
+  if (chanFilter) {
+    const currentVal = chanFilter.value;
+    let html = '<option value="all">All Telegram Channels</option>';
+    for (const ch of channels.filter(c => c.destinationType === 'channel')) {
+      html += `<option value="${ch.tag}">${escapeHtml(ch.name)} (${ch.tag})</option>`;
+    }
+    chanFilter.innerHTML = html;
+    chanFilter.value = currentVal || 'all';
+  }
 }
 
 function renderAdLinks(channels) {

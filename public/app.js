@@ -1486,8 +1486,8 @@ async function loadChannelAnalytics() {
       const fraudBlockedEl = document.getElementById('fraudBlockedCount');
       if (fraudBlockedEl) fraudBlockedEl.textContent = stats.fraudBlockedCount || 0;
 
-      // 3. Platform Split (FB vs IG)
-      const pStats = stats.platformStats || { facebook: { clicks: 0, joins: 0, conversionRate: 0 }, instagram: { clicks: 0, joins: 0, conversionRate: 0 } };
+      // 3. Platform Split (FB vs IG) Strictly for Channel Joins & Clicks
+      const pStats = stats.channelPlatformStats || stats.platformStats || { facebook: { clicks: 0, joins: 0, conversionRate: 0 }, instagram: { clicks: 0, joins: 0, conversionRate: 0 } };
       const fbClicksEl = document.getElementById('fbClicksCount');
       if (fbClicksEl) fbClicksEl.textContent = pStats.facebook?.clicks || 0;
       const fbJoinsEl = document.getElementById('fbJoinsCount');
@@ -1502,8 +1502,8 @@ async function loadChannelAnalytics() {
       const igCREl = document.getElementById('igConversionRate');
       if (igCREl) igCREl.textContent = `${pStats.instagram?.conversionRate || 0}% CR`;
 
-      // 4. Placements
-      const plStats = stats.placementStats || { reels: { clicks: 0, joins: 0 }, stories: { clicks: 0, joins: 0 }, feed: { clicks: 0, joins: 0 } };
+      // 4. Placements Strictly for Channel Joins
+      const plStats = stats.channelPlacementStats || stats.placementStats || { reels: { clicks: 0, joins: 0 }, stories: { clicks: 0, joins: 0 }, feed: { clicks: 0, joins: 0 } };
       const plReelsEl = document.getElementById('placementReels');
       if (plReelsEl) plReelsEl.textContent = `${(plStats.reels?.clicks || 0) + (plStats.reels?.joins || 0)}`;
       const plStoriesEl = document.getElementById('placementStories');
@@ -1511,10 +1511,10 @@ async function loadChannelAnalytics() {
       const plFeedEl = document.getElementById('placementFeed');
       if (plFeedEl) plFeedEl.textContent = `${(plStats.feed?.clicks || 0) + (plStats.feed?.joins || 0)}`;
 
-      // 5. State & Geo
+      // 5. State & Geo Strictly for Channel Subscribers
       const statesCont = document.getElementById('topStatesContainer');
       if (statesCont) {
-        const topStates = stats.geoStats?.topStates || [];
+        const topStates = stats.channelGeoStats?.topStates || [];
         if (topStates.length === 0) {
           statesCont.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: rgba(255,255,255,0.03); padding: 0.4rem 0.75rem; border-radius: 6px;">

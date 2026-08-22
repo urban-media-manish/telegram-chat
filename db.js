@@ -844,17 +844,24 @@ const db = {
     const channelCapiSuccess = {};
     const hourlyJoins = new Array(24).fill(0);
     const deviceStats = { iOS: 0, Android: 0, Desktop: 0 };
-    const platformStats = {
-      facebook: { clicks: 0, joins: 0, conversionRate: 0 },
-      instagram: { clicks: 0, joins: 0, conversionRate: 0 }
-    };
-    const placementStats = {
-      reels: { clicks: 0, joins: 0 },
-      stories: { clicks: 0, joins: 0 },
-      feed: { clicks: 0, joins: 0 }
-    };
+    
+    // Global & Isolated Platform Breakdown
+    const platformStats = { facebook: { clicks: 0, joins: 0, conversionRate: 0 }, instagram: { clicks: 0, joins: 0, conversionRate: 0 } };
+    const channelPlatformStats = { facebook: { clicks: 0, joins: 0, conversionRate: 0 }, instagram: { clicks: 0, joins: 0, conversionRate: 0 } };
+    const botPlatformStats = { facebook: { clicks: 0, joins: 0, conversionRate: 0 }, instagram: { clicks: 0, joins: 0, conversionRate: 0 } };
+
+    // Global & Isolated Placement Breakdown
+    const placementStats = { reels: { clicks: 0, joins: 0 }, stories: { clicks: 0, joins: 0 }, feed: { clicks: 0, joins: 0 } };
+    const channelPlacementStats = { reels: { clicks: 0, joins: 0 }, stories: { clicks: 0, joins: 0 }, feed: { clicks: 0, joins: 0 } };
+    const botPlacementStats = { reels: { clicks: 0, joins: 0 }, stories: { clicks: 0, joins: 0 }, feed: { clicks: 0, joins: 0 } };
+
+    // Global & Isolated Geo Intelligence
     const stateCounts = {};
     const cityCounts = {};
+    const channelStateCounts = {};
+    const channelCityCounts = {};
+    const botStateCounts = {};
+    const botCityCounts = {};
 
     const filteredLeads = leads.filter(l => {
       const t = new Date(l.createdAt || 0).getTime();
@@ -871,9 +878,11 @@ const db = {
       const hr = date.getHours();
       hourlyJoins[hr] = (hourlyJoins[hr] || 0) + 1;
 
+      const isChanJoin = lead.joinType === 'channel_join';
+
       if (lead.capiStatus === 'success') successfulCapi++;
       if (lead.capiStatus === 'failed') failedCapi++;
-      if (lead.joinType === 'channel_join') {
+      if (isChanJoin) {
         channelJoins++;
         if (lead.retentionStatus === 'left') leftMembers++;
         else activeMembers++;
@@ -883,20 +892,40 @@ const db = {
       if (isToday) channelTodayCounts[ch] = (channelTodayCounts[ch] || 0) + 1;
       if (lead.capiStatus === 'success') channelCapiSuccess[ch] = (channelCapiSuccess[ch] || 0) + 1;
 
-      // Platform & Placement Joins
+      // Platform attribution
       const p = (lead.platform || 'Facebook').toLowerCase();
-      if (p.includes('insta') || p === 'ig') platformStats.instagram.joins++;
-      else platformStats.facebook.joins++;
+      const isIg = p.includes('insta') || p === 'ig';
+      if (isIg) {
+        platformStats.instagram.joins++;
+        if (isChanJoin) channelPlatformStats.instagram.joins++;
+        else botPlatformStats.instagram.joins++;
+      } else {
+        platformStats.facebook.joins++;
+        if (isChanJoin) channelPlatformStats.facebook.joins++;
+        else botPlatformStats.facebook.joins++;
+      }
 
+      // Placement attribution
       const pl = (lead.placement || 'Feed').toLowerCase();
-      if (pl.includes('reel')) placementStats.reels.joins++;
-      else if (pl.includes('stor')) placementStats.stories.joins++;
-      else placementStats.feed.joins++;
+      let plKey = 'feed';
+      if (pl.includes('reel')) plKey = 'reels';
+      else if (pl.includes('stor')) plKey = 'stories';
 
-      // Geo state & city
+      placementStats[plKey].joins++;
+      if (isChanJoin) channelPlacementStats[plKey].joins++;
+      else botPlacementStats[plKey].joins++;
+
+      // Geo attribution
       const st = lead.state || 'Maharashtra';
       stateCounts[st] = (stateCounts[st] || 0) + 1;
-      if (lead.city) cityCounts[lead.city] = (cityCounts[lead.city] || 0) + 1;
+      if (isChanJoin) channelStateCounts[st] = (channelStateCounts[st] || 0) + 1;
+      else botStateCounts[st] = (botStateCounts[st] || 0) + 1;
+
+      if (lead.city) {
+        cityCounts[lead.city] = (cityCounts[lead.city] || 0) + 1;
+        if (isChanJoin) channelCityCounts[lead.city] = (channelCityCounts[lead.city] || 0) + 1;
+        else botCityCounts[lead.city] = (botCityCounts[lead.city] || 0) + 1;
+      }
     }
 
     const channelTagsSet = new Set(channels.filter(c => c.destinationType === 'channel').map(c => c.tag.toLowerCase()));
@@ -933,16 +962,36 @@ const db = {
 
       // Platform & Placement Clicks
       const p = (clk.platform || 'Facebook').toLowerCase();
-      if (p.includes('insta') || p === 'ig') platformStats.instagram.clicks++;
-      else platformStats.facebook.clicks++;
+      const isIg = p.includes('insta') || p === 'ig';
+      if (isIg) {
+        platformStats.instagram.clicks++;
+        if (isChan) channelPlatformStats.instagram.clicks++;
+        else botPlatformStats.instagram.clicks++;
+      } else {
+        platformStats.facebook.clicks++;
+        if (isChan) channelPlatformStats.facebook.clicks++;
+        else botPlatformStats.facebook.clicks++;
+      }
 
       const pl = (clk.placement || 'Feed').toLowerCase();
-      if (pl.includes('reel')) placementStats.reels.clicks++;
-      else if (pl.includes('stor')) placementStats.stories.clicks++;
-      else placementStats.feed.clicks++;
+      let plKey = 'feed';
+      if (pl.includes('reel')) plKey = 'reels';
+      else if (pl.includes('stor')) plKey = 'stories';
 
-      if (clk.state) stateCounts[clk.state] = (stateCounts[clk.state] || 0) + 1;
-      if (clk.city) cityCounts[clk.city] = (cityCounts[clk.city] || 0) + 1;
+      placementStats[plKey].clicks++;
+      if (isChan) channelPlacementStats[plKey].clicks++;
+      else botPlacementStats[plKey].clicks++;
+
+      if (clk.state) {
+        stateCounts[clk.state] = (stateCounts[clk.state] || 0) + 1;
+        if (isChan) channelStateCounts[clk.state] = (channelStateCounts[clk.state] || 0) + 1;
+        else botStateCounts[clk.state] = (botStateCounts[clk.state] || 0) + 1;
+      }
+      if (clk.city) {
+        cityCounts[clk.city] = (cityCounts[clk.city] || 0) + 1;
+        if (isChan) channelCityCounts[clk.city] = (channelCityCounts[clk.city] || 0) + 1;
+        else botCityCounts[clk.city] = (botCityCounts[clk.city] || 0) + 1;
+      }
     }
 
     const uniqueConvKeys = new Set();
@@ -963,15 +1012,22 @@ const db = {
     platformStats.instagram.conversionRate = platformStats.instagram.clicks > 0
       ? Math.round((platformStats.instagram.joins / platformStats.instagram.clicks) * 100) : 0;
 
-    const topStates = Object.entries(stateCounts)
-      .map(([state, count]) => ({ state, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
+    channelPlatformStats.facebook.conversionRate = channelPlatformStats.facebook.clicks > 0
+      ? Math.round((channelPlatformStats.facebook.joins / channelPlatformStats.facebook.clicks) * 100) : 0;
+    channelPlatformStats.instagram.conversionRate = channelPlatformStats.instagram.clicks > 0
+      ? Math.round((channelPlatformStats.instagram.joins / channelPlatformStats.instagram.clicks) * 100) : 0;
 
-    const topCities = Object.entries(cityCounts)
-      .map(([city, count]) => ({ city, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
+    botPlatformStats.facebook.conversionRate = botPlatformStats.facebook.clicks > 0
+      ? Math.round((botPlatformStats.facebook.joins / botPlatformStats.facebook.clicks) * 100) : 0;
+    botPlatformStats.instagram.conversionRate = botPlatformStats.instagram.clicks > 0
+      ? Math.round((botPlatformStats.instagram.joins / botPlatformStats.instagram.clicks) * 100) : 0;
+
+    const mapTop = (obj) => Object.entries(obj).map(([state, count]) => ({ state, count })).sort((a, b) => b.count - a.count).slice(0, 8);
+    const mapCities = (obj) => Object.entries(obj).map(([city, count]) => ({ city, count })).sort((a, b) => b.count - a.count).slice(0, 8);
+
+    const geoStats = { topStates: mapTop(stateCounts), topCities: mapCities(cityCounts) };
+    const channelGeoStats = { topStates: mapTop(channelStateCounts), topCities: mapCities(channelCityCounts) };
+    const botGeoStats = { topStates: mapTop(botStateCounts), topCities: mapCities(botCityCounts) };
 
     const channelBreakdown = channels.map(c => ({
       tag: c.tag,
@@ -1007,7 +1063,13 @@ const db = {
       deviceStats,
       platformStats,
       placementStats,
-      geoStats: { topStates, topCities },
+      geoStats,
+      channelPlatformStats,
+      channelPlacementStats,
+      channelGeoStats,
+      botPlatformStats,
+      botPlacementStats,
+      botGeoStats,
       fraudBlockedCount: readJsonFile(FRAUD_FILE, []).length,
       fraudShieldStatus: 'Active',
       retention: { activeMembers, leftMembers },
@@ -1046,17 +1108,21 @@ const db = {
         const channelDeviceStats = { iOS: 0, Android: 0, Desktop: 0 };
         const botDeviceStats = { iOS: 0, Android: 0, Desktop: 0 };
         const deviceStats = { iOS: 0, Android: 0, Desktop: 0 };
-        const platformStats = {
-          facebook: { clicks: 0, joins: 0, conversionRate: 0 },
-          instagram: { clicks: 0, joins: 0, conversionRate: 0 }
-        };
-        const placementStats = {
-          reels: { clicks: 0, joins: 0 },
-          stories: { clicks: 0, joins: 0 },
-          feed: { clicks: 0, joins: 0 }
-        };
+
+        const platformStats = { facebook: { clicks: 0, joins: 0, conversionRate: 0 }, instagram: { clicks: 0, joins: 0, conversionRate: 0 } };
+        const channelPlatformStats = { facebook: { clicks: 0, joins: 0, conversionRate: 0 }, instagram: { clicks: 0, joins: 0, conversionRate: 0 } };
+        const botPlatformStats = { facebook: { clicks: 0, joins: 0, conversionRate: 0 }, instagram: { clicks: 0, joins: 0, conversionRate: 0 } };
+
+        const placementStats = { reels: { clicks: 0, joins: 0 }, stories: { clicks: 0, joins: 0 }, feed: { clicks: 0, joins: 0 } };
+        const channelPlacementStats = { reels: { clicks: 0, joins: 0 }, stories: { clicks: 0, joins: 0 }, feed: { clicks: 0, joins: 0 } };
+        const botPlacementStats = { reels: { clicks: 0, joins: 0 }, stories: { clicks: 0, joins: 0 }, feed: { clicks: 0, joins: 0 } };
+
         const stateCounts = {};
         const cityCounts = {};
+        const channelStateCounts = {};
+        const channelCityCounts = {};
+        const botStateCounts = {};
+        const botCityCounts = {};
 
         for (const lead of leads) {
           const date = new Date(lead.createdAt);
@@ -1068,9 +1134,11 @@ const db = {
           const hr = date.getHours();
           hourlyJoins[hr] = (hourlyJoins[hr] || 0) + 1;
 
+          const isChanJoin = lead.joinType === 'channel_join';
+
           if (lead.capiStatus === 'success') successfulCapi++;
           if (lead.capiStatus === 'failed') failedCapi++;
-          if (lead.joinType === 'channel_join') {
+          if (isChanJoin) {
             channelJoins++;
             if (lead.retentionStatus === 'left') leftMembers++;
             else activeMembers++;
@@ -1082,17 +1150,36 @@ const db = {
 
           // Platform & Placement Joins
           const p = (lead.platform || 'Facebook').toLowerCase();
-          if (p.includes('insta') || p === 'ig') platformStats.instagram.joins++;
-          else platformStats.facebook.joins++;
+          const isIg = p.includes('insta') || p === 'ig';
+          if (isIg) {
+            platformStats.instagram.joins++;
+            if (isChanJoin) channelPlatformStats.instagram.joins++;
+            else botPlatformStats.instagram.joins++;
+          } else {
+            platformStats.facebook.joins++;
+            if (isChanJoin) channelPlatformStats.facebook.joins++;
+            else botPlatformStats.facebook.joins++;
+          }
 
           const pl = (lead.placement || 'Feed').toLowerCase();
-          if (pl.includes('reel')) placementStats.reels.joins++;
-          else if (pl.includes('stor')) placementStats.stories.joins++;
-          else placementStats.feed.joins++;
+          let plKey = 'feed';
+          if (pl.includes('reel')) plKey = 'reels';
+          else if (pl.includes('stor')) plKey = 'stories';
+
+          placementStats[plKey].joins++;
+          if (isChanJoin) channelPlacementStats[plKey].joins++;
+          else botPlacementStats[plKey].joins++;
 
           const st = lead.state || 'Maharashtra';
           stateCounts[st] = (stateCounts[st] || 0) + 1;
-          if (lead.city) cityCounts[lead.city] = (cityCounts[lead.city] || 0) + 1;
+          if (isChanJoin) channelStateCounts[st] = (channelStateCounts[st] || 0) + 1;
+          else botStateCounts[st] = (botStateCounts[st] || 0) + 1;
+
+          if (lead.city) {
+            cityCounts[lead.city] = (cityCounts[lead.city] || 0) + 1;
+            if (isChanJoin) channelCityCounts[lead.city] = (channelCityCounts[lead.city] || 0) + 1;
+            else botCityCounts[lead.city] = (botCityCounts[lead.city] || 0) + 1;
+          }
         }
 
         for (const clk of clicks) {
@@ -1118,16 +1205,36 @@ const db = {
 
           // Platform & Placement Clicks
           const p = (clk.platform || 'Facebook').toLowerCase();
-          if (p.includes('insta') || p === 'ig') platformStats.instagram.clicks++;
-          else platformStats.facebook.clicks++;
+          const isIg = p.includes('insta') || p === 'ig';
+          if (isIg) {
+            platformStats.instagram.clicks++;
+            if (isChan) channelPlatformStats.instagram.clicks++;
+            else botPlatformStats.instagram.clicks++;
+          } else {
+            platformStats.facebook.clicks++;
+            if (isChan) channelPlatformStats.facebook.clicks++;
+            else botPlatformStats.facebook.clicks++;
+          }
 
           const pl = (clk.placement || 'Feed').toLowerCase();
-          if (pl.includes('reel')) placementStats.reels.clicks++;
-          else if (pl.includes('stor')) placementStats.stories.clicks++;
-          else placementStats.feed.clicks++;
+          let plKey = 'feed';
+          if (pl.includes('reel')) plKey = 'reels';
+          else if (pl.includes('stor')) plKey = 'stories';
 
-          if (clk.state) stateCounts[clk.state] = (stateCounts[clk.state] || 0) + 1;
-          if (clk.city) cityCounts[clk.city] = (cityCounts[clk.city] || 0) + 1;
+          placementStats[plKey].clicks++;
+          if (isChan) channelPlacementStats[plKey].clicks++;
+          else botPlacementStats[plKey].clicks++;
+
+          if (clk.state) {
+            stateCounts[clk.state] = (stateCounts[clk.state] || 0) + 1;
+            if (isChan) channelStateCounts[clk.state] = (channelStateCounts[clk.state] || 0) + 1;
+            else botStateCounts[clk.state] = (botStateCounts[clk.state] || 0) + 1;
+          }
+          if (clk.city) {
+            cityCounts[clk.city] = (cityCounts[clk.city] || 0) + 1;
+            if (isChan) channelCityCounts[clk.city] = (channelCityCounts[clk.city] || 0) + 1;
+            else botCityCounts[clk.city] = (botCityCounts[clk.city] || 0) + 1;
+          }
         }
 
         const convs = await this.getConversations();
@@ -1143,15 +1250,22 @@ const db = {
         platformStats.instagram.conversionRate = platformStats.instagram.clicks > 0
           ? Math.round((platformStats.instagram.joins / platformStats.instagram.clicks) * 100) : 0;
 
-        const topStates = Object.entries(stateCounts)
-          .map(([state, count]) => ({ state, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 8);
+        channelPlatformStats.facebook.conversionRate = channelPlatformStats.facebook.clicks > 0
+          ? Math.round((channelPlatformStats.facebook.joins / channelPlatformStats.facebook.clicks) * 100) : 0;
+        channelPlatformStats.instagram.conversionRate = channelPlatformStats.instagram.clicks > 0
+          ? Math.round((channelPlatformStats.instagram.joins / channelPlatformStats.instagram.clicks) * 100) : 0;
 
-        const topCities = Object.entries(cityCounts)
-          .map(([city, count]) => ({ city, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 8);
+        botPlatformStats.facebook.conversionRate = botPlatformStats.facebook.clicks > 0
+          ? Math.round((botPlatformStats.facebook.joins / botPlatformStats.facebook.clicks) * 100) : 0;
+        botPlatformStats.instagram.conversionRate = botPlatformStats.instagram.clicks > 0
+          ? Math.round((botPlatformStats.instagram.joins / botPlatformStats.instagram.clicks) * 100) : 0;
+
+        const mapTop = (obj) => Object.entries(obj).map(([state, count]) => ({ state, count })).sort((a, b) => b.count - a.count).slice(0, 8);
+        const mapCities = (obj) => Object.entries(obj).map(([city, count]) => ({ city, count })).sort((a, b) => b.count - a.count).slice(0, 8);
+
+        const geoStats = { topStates: mapTop(stateCounts), topCities: mapCities(cityCounts) };
+        const channelGeoStats = { topStates: mapTop(channelStateCounts), topCities: mapCities(channelCityCounts) };
+        const botGeoStats = { topStates: mapTop(botStateCounts), topCities: mapCities(botCityCounts) };
 
         const channelBreakdown = channels.map(c => ({
           tag: c.tag,
@@ -1189,7 +1303,13 @@ const db = {
           deviceStats,
           platformStats,
           placementStats,
-          geoStats: { topStates, topCities },
+          geoStats,
+          channelPlatformStats,
+          channelPlacementStats,
+          channelGeoStats,
+          botPlatformStats,
+          botPlacementStats,
+          botGeoStats,
           fraudBlockedCount,
           fraudShieldStatus: 'Active',
           retention: { activeMembers, leftMembers },

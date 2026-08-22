@@ -1090,27 +1090,30 @@ async function loadStats() {
         renderFilteredBreakdownCards();
       }
 
-      // Populate Conversion Funnel & Device Intelligence (Strictly for Channel Joins)
+      // Populate Conversion Funnel & Device Intelligence (Strictly Isolated for Channel Joins)
+      const channelClicksCount = stats.channelClicks || 0;
       const funnelRateEl = document.getElementById('funnelConversionRate');
       if (funnelRateEl) {
-        const rate = (stats.totalClicks && stats.totalClicks > 0)
-          ? `${Math.round(((stats.channelJoins || 0) / stats.totalClicks) * 100)}% Rate`
+        const rate = (channelClicksCount > 0)
+          ? `${Math.round(((stats.channelJoins || 0) / channelClicksCount) * 100)}% Rate`
           : (stats.channelJoins > 0 ? '100% Direct' : '0% Rate');
         funnelRateEl.textContent = rate;
       }
 
       const funnelClicksEl = document.getElementById('funnelClicks');
-      if (funnelClicksEl) funnelClicksEl.textContent = stats.totalClicks || 0;
+      if (funnelClicksEl) funnelClicksEl.textContent = channelClicksCount;
 
       const funnelJoinsEl = document.getElementById('funnelJoins');
       if (funnelJoinsEl) funnelJoinsEl.textContent = stats.channelJoins || 0;
 
+      // Channel-specific Device Intelligence (Zero contamination from Bot Chat clicks)
+      const cDev = stats.channelDeviceStats || { iOS: 0, Android: 0, Desktop: 0 };
       const iosEl = document.getElementById('deviceIos');
-      if (iosEl) iosEl.textContent = stats.deviceStats?.iOS || 0;
+      if (iosEl) iosEl.textContent = cDev.iOS || 0;
       const andEl = document.getElementById('deviceAndroid');
-      if (andEl) andEl.textContent = stats.deviceStats?.Android || 0;
+      if (andEl) andEl.textContent = cDev.Android || 0;
       const deskEl = document.getElementById('deviceDesktop');
-      if (deskEl) deskEl.textContent = stats.deviceStats?.Desktop || 0;
+      if (deskEl) deskEl.textContent = cDev.Desktop || 0;
 
       const activeEl = document.getElementById('retentionActive');
       if (activeEl) activeEl.textContent = stats.retention?.activeMembers || 0;

@@ -771,11 +771,32 @@ const db = {
       if (lead.capiStatus === 'success') channelCapiSuccess[ch] = (channelCapiSuccess[ch] || 0) + 1;
     }
 
+    const channelTagsSet = new Set(channels.filter(c => c.destinationType === 'channel').map(c => c.tag.toLowerCase()));
+    let channelClicks = 0;
+    let botClicks = 0;
+    const channelDeviceStats = { iOS: 0, Android: 0, Desktop: 0 };
+    const botDeviceStats = { iOS: 0, Android: 0, Desktop: 0 };
+
     for (const clk of clicks) {
       const dev = clk.device || 'Android';
+      const tag = (clk.channelTag || '').toLowerCase();
+      const isChan = channelTagsSet.has(tag);
+
       if (dev === 'iOS') deviceStats.iOS++;
       else if (dev === 'Desktop') deviceStats.Desktop++;
       else deviceStats.Android++;
+
+      if (isChan) {
+        channelClicks++;
+        if (dev === 'iOS') channelDeviceStats.iOS++;
+        else if (dev === 'Desktop') channelDeviceStats.Desktop++;
+        else channelDeviceStats.Android++;
+      } else {
+        botClicks++;
+        if (dev === 'iOS') botDeviceStats.iOS++;
+        else if (dev === 'Desktop') botDeviceStats.Desktop++;
+        else botDeviceStats.Android++;
+      }
     }
 
     const uniqueConvKeys = new Set();
@@ -787,8 +808,9 @@ const db = {
     }
 
     const totalClicks = clicks.length;
-    const conversionRate = totalClicks > 0 ? Math.round((channelJoins / totalClicks) * 100) : 0;
+    const conversionRate = channelClicks > 0 ? Math.round((channelJoins / channelClicks) * 100) : 0;
     const botLeads = leads.filter(l => l.joinType !== 'channel_join').length;
+    const botConversionRate = botClicks > 0 ? Math.round((botLeads / botClicks) * 100) : 0;
 
     const channelBreakdown = channels.map(c => ({
       tag: c.tag,
@@ -812,6 +834,11 @@ const db = {
       channelBreakdown,
       totalClicks,
       conversionRate,
+      channelClicks,
+      channelDeviceStats,
+      botClicks,
+      botDeviceStats,
+      botConversionRate,
       hourlyJoins,
       deviceStats,
       retention: { activeMembers, leftMembers },
@@ -834,6 +861,11 @@ const db = {
         const channelTodayCounts = {};
         const channelCapiSuccess = {};
         const hourlyJoins = new Array(24).fill(0);
+        const channelTagsSet = new Set(channels.filter(c => c.destinationType === 'channel').map(c => c.tag.toLowerCase()));
+        let channelClicks = 0;
+        let botClicks = 0;
+        const channelDeviceStats = { iOS: 0, Android: 0, Desktop: 0 };
+        const botDeviceStats = { iOS: 0, Android: 0, Desktop: 0 };
         const deviceStats = { iOS: 0, Android: 0, Desktop: 0 };
 
         for (const lead of leads) {
@@ -860,17 +892,33 @@ const db = {
 
         for (const clk of clicks) {
           const dev = clk.device || 'Android';
+          const tag = (clk.channelTag || '').toLowerCase();
+          const isChan = channelTagsSet.has(tag);
+
           if (dev === 'iOS') deviceStats.iOS++;
           else if (dev === 'Desktop') deviceStats.Desktop++;
           else deviceStats.Android++;
+
+          if (isChan) {
+            channelClicks++;
+            if (dev === 'iOS') channelDeviceStats.iOS++;
+            else if (dev === 'Desktop') channelDeviceStats.Desktop++;
+            else channelDeviceStats.Android++;
+          } else {
+            botClicks++;
+            if (dev === 'iOS') botDeviceStats.iOS++;
+            else if (dev === 'Desktop') botDeviceStats.Desktop++;
+            else botDeviceStats.Android++;
+          }
         }
 
         const convs = await this.getConversations();
         const activeChats = convs.length;
 
         const totalClicks = clicks.length;
-        const conversionRate = totalClicks > 0 ? Math.round((channelJoins / totalClicks) * 100) : 0;
+        const conversionRate = channelClicks > 0 ? Math.round((channelJoins / channelClicks) * 100) : 0;
         const botLeads = leads.filter(l => l.joinType !== 'channel_join').length;
+        const botConversionRate = botClicks > 0 ? Math.round((botLeads / botClicks) * 100) : 0;
 
         const channelBreakdown = channels.map(c => ({
           tag: c.tag,
@@ -894,6 +942,11 @@ const db = {
           channelBreakdown,
           totalClicks,
           conversionRate,
+          channelClicks,
+          channelDeviceStats,
+          botClicks,
+          botDeviceStats,
+          botConversionRate,
           hourlyJoins,
           deviceStats,
           retention: { activeMembers, leftMembers },

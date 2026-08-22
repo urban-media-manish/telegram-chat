@@ -130,11 +130,15 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
     const channels = db.getChannels();
     if (!matchedChannel) {
       if (rawParam) {
-        matchedChannel = channels.find(c => 
-          rawParam.toLowerCase() === c.tag.toLowerCase() ||
-          rawParam.toLowerCase().startsWith(c.tag.toLowerCase() + '_') ||
-          rawParam.toLowerCase().startsWith(c.tag.toLowerCase() + '-')
-        );
+        if (rawParam.toLowerCase().startsWith('meta_ad')) {
+          matchedChannel = channels.find(c => c.tag === 'ad1') || channels[0];
+        } else {
+          matchedChannel = channels.find(c => 
+            rawParam.toLowerCase() === c.tag.toLowerCase() ||
+            rawParam.toLowerCase().startsWith(c.tag.toLowerCase() + '_') ||
+            rawParam.toLowerCase().startsWith(c.tag.toLowerCase() + '-')
+          );
+        }
       }
       // Fallback: If no start param, match the designated primary bot channel or ad1 (South Boook)
       if (!matchedChannel) {

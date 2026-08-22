@@ -327,17 +327,20 @@
             </div>
           </div>
 
-          <!-- Card 4: State & City Geographic Intelligence -->
+          <!-- Card 4: City & State Geographic Intelligence -->
           <div class="card" style="background: rgba(18, 22, 34, 0.75); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 1.25rem 1.4rem; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); backdrop-filter: blur(20px);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <span style="font-size: 1.1rem;">📍</span>
-                <h3 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin: 0;">State & Geographic Intelligence</h3>
+                <span style="font-size: 1.1rem;">🏙️</span>
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin: 0;">City & State Geo Intelligence</h3>
               </div>
-              <span class="tag-pill" style="font-size: 10px;">🇮🇳 India Live Geo</span>
+              <div style="display: flex; background: rgba(255,255,255,0.06); padding: 2px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
+                <button id="btnGeoCity" onclick="switchGeoView('city')" style="background: rgba(56,189,248,0.2); color: #38bdf8; border: none; padding: 2px 7px; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer;">🏙️ Cities</button>
+                <button id="btnGeoState" onclick="switchGeoView('state')" style="background: transparent; color: rgba(255,255,255,0.6); border: none; padding: 2px 7px; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer;">📍 States</button>
+              </div>
             </div>
 
-            <!-- Top States Container -->
+            <!-- Top Geo List Container (Cities / States) -->
             <div id="topStatesContainer" style="display: flex; flex-direction: column; gap: 0.45rem; max-height: 145px; overflow-y: auto;">
               <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: rgba(255,255,255,0.03); padding: 0.45rem 0.75rem; border-radius: 8px;">
                 <span style="color: rgba(255,255,255,0.7); font-weight: 600;">🇮🇳 All India (Ad Clicks Live IP)</span>

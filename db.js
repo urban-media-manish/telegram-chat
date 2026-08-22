@@ -931,9 +931,10 @@ const db = {
       }
 
       if (lead.city) {
-        cityCounts[lead.city] = (cityCounts[lead.city] || 0) + 1;
-        if (isChanJoin) channelCityCounts[lead.city] = (channelCityCounts[lead.city] || 0) + 1;
-        else botCityCounts[lead.city] = (botCityCounts[lead.city] || 0) + 1;
+        const cityLabel = lead.state ? `${lead.city}, ${lead.state}` : lead.city;
+        cityCounts[cityLabel] = (cityCounts[cityLabel] || 0) + 1;
+        if (isChanJoin) channelCityCounts[cityLabel] = (channelCityCounts[cityLabel] || 0) + 1;
+        else botCityCounts[cityLabel] = (botCityCounts[cityLabel] || 0) + 1;
       }
     }
 
@@ -1004,9 +1005,10 @@ const db = {
         else botStateCounts[clk.state] = (botStateCounts[clk.state] || 0) + 1;
       }
       if (clk.city) {
-        cityCounts[clk.city] = (cityCounts[clk.city] || 0) + 1;
-        if (isChan) channelCityCounts[clk.city] = (channelCityCounts[clk.city] || 0) + 1;
-        else botCityCounts[clk.city] = (botCityCounts[clk.city] || 0) + 1;
+        const cityLabel = clk.state ? `${clk.city}, ${clk.state}` : clk.city;
+        cityCounts[cityLabel] = (cityCounts[cityLabel] || 0) + 1;
+        if (isChan) channelCityCounts[cityLabel] = (channelCityCounts[cityLabel] || 0) + 1;
+        else botCityCounts[cityLabel] = (botCityCounts[cityLabel] || 0) + 1;
       }
     }
 
@@ -1201,9 +1203,10 @@ const db = {
           }
 
           if (lead.city) {
-            cityCounts[lead.city] = (cityCounts[lead.city] || 0) + 1;
-            if (isChanJoin) channelCityCounts[lead.city] = (channelCityCounts[lead.city] || 0) + 1;
-            else botCityCounts[lead.city] = (botCityCounts[lead.city] || 0) + 1;
+            const cityLabel = lead.state ? `${lead.city}, ${lead.state}` : lead.city;
+            cityCounts[cityLabel] = (cityCounts[cityLabel] || 0) + 1;
+            if (isChanJoin) channelCityCounts[cityLabel] = (channelCityCounts[cityLabel] || 0) + 1;
+            else botCityCounts[cityLabel] = (botCityCounts[cityLabel] || 0) + 1;
           }
         }
 
@@ -1263,9 +1266,10 @@ const db = {
             else botStateCounts[clk.state] = (botStateCounts[clk.state] || 0) + 1;
           }
           if (clk.city) {
-            cityCounts[clk.city] = (cityCounts[clk.city] || 0) + 1;
-            if (isChan) channelCityCounts[clk.city] = (channelCityCounts[clk.city] || 0) + 1;
-            else botCityCounts[clk.city] = (botCityCounts[clk.city] || 0) + 1;
+            const cityLabel = clk.state ? `${clk.city}, ${clk.state}` : clk.city;
+            cityCounts[cityLabel] = (cityCounts[cityLabel] || 0) + 1;
+            if (isChan) channelCityCounts[cityLabel] = (channelCityCounts[cityLabel] || 0) + 1;
+            else botCityCounts[cityLabel] = (botCityCounts[cityLabel] || 0) + 1;
           }
         }
 

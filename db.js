@@ -14,17 +14,18 @@ const STATE_NAMES = {
 
 function resolveGeo(ip) {
   if (!ip || ip === '127.0.0.1' || ip === '::1') {
-    return { country: 'India', state: 'Maharashtra', city: 'Mumbai' };
+    return { country: 'India', state: '', city: '' };
   }
   try {
-    const geo = geoip.lookup(ip);
-    if (!geo) return { country: 'India', state: 'Maharashtra', city: 'Mumbai' };
-    const state = STATE_NAMES[geo.region] || geo.region || 'Maharashtra';
-    const city = geo.city || 'Mumbai';
+    const cleanIp = ip.split(',')[0].trim();
+    const geo = geoip.lookup(cleanIp);
+    if (!geo) return { country: 'India', state: '', city: '' };
+    const state = STATE_NAMES[geo.region] || geo.region || '';
+    const city = geo.city || '';
     const country = geo.country === 'IN' ? 'India' : (geo.country || 'India');
     return { country, state, city };
   } catch (e) {
-    return { country: 'India', state: 'India', city: '' };
+    return { country: 'India', state: '', city: '' };
   }
 }
 
@@ -915,11 +916,12 @@ const db = {
       if (isChanJoin) channelPlacementStats[plKey].joins++;
       else botPlacementStats[plKey].joins++;
 
-      // Geo attribution
-      const st = lead.state || 'Maharashtra';
-      stateCounts[st] = (stateCounts[st] || 0) + 1;
-      if (isChanJoin) channelStateCounts[st] = (channelStateCounts[st] || 0) + 1;
-      else botStateCounts[st] = (botStateCounts[st] || 0) + 1;
+      // Geo attribution (Only real IP-detected geo)
+      if (lead.state) {
+        stateCounts[lead.state] = (stateCounts[lead.state] || 0) + 1;
+        if (isChanJoin) channelStateCounts[lead.state] = (channelStateCounts[lead.state] || 0) + 1;
+        else botStateCounts[lead.state] = (botStateCounts[lead.state] || 0) + 1;
+      }
 
       if (lead.city) {
         cityCounts[lead.city] = (cityCounts[lead.city] || 0) + 1;
@@ -1170,10 +1172,12 @@ const db = {
           if (isChanJoin) channelPlacementStats[plKey].joins++;
           else botPlacementStats[plKey].joins++;
 
-          const st = lead.state || 'Maharashtra';
-          stateCounts[st] = (stateCounts[st] || 0) + 1;
-          if (isChanJoin) channelStateCounts[st] = (channelStateCounts[st] || 0) + 1;
-          else botStateCounts[st] = (botStateCounts[st] || 0) + 1;
+          // Geo attribution (Only real IP-detected geo)
+          if (lead.state) {
+            stateCounts[lead.state] = (stateCounts[lead.state] || 0) + 1;
+            if (isChanJoin) channelStateCounts[lead.state] = (channelStateCounts[lead.state] || 0) + 1;
+            else botStateCounts[lead.state] = (botStateCounts[lead.state] || 0) + 1;
+          }
 
           if (lead.city) {
             cityCounts[lead.city] = (cityCounts[lead.city] || 0) + 1;

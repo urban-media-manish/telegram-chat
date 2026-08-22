@@ -76,7 +76,7 @@ app.get('/go', (req, res) => {
 
   const userAgent = req.headers['user-agent'] || '';
   const device = userAgent.includes('iPhone') || userAgent.includes('iPad') ? 'iOS' : (userAgent.includes('Android') ? 'Android' : 'Desktop');
-  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const ip = (req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
 
   // 🛡️ Anti-Bot & Click Fraud Shield Evaluation
   const fraudCheck = antiBotShield.evaluateRequest(req);

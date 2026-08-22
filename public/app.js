@@ -1517,9 +1517,9 @@ async function loadChannelAnalytics() {
         const topStates = stats.channelGeoStats?.topStates || [];
         if (topStates.length === 0) {
           statesCont.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: rgba(255,255,255,0.03); padding: 0.4rem 0.75rem; border-radius: 6px;">
-              <span style="color: #fff; font-weight: 600;">🇮🇳 All States</span>
-              <strong style="color: #38bdf8;">100% India</strong>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: rgba(255,255,255,0.03); padding: 0.45rem 0.75rem; border-radius: 8px;">
+              <span style="color: rgba(255,255,255,0.7); font-weight: 600;">🇮🇳 All India (Ad Clicks Live IP)</span>
+              <strong style="color: #38bdf8;">Live Tracking</strong>
             </div>
           `;
         } else {

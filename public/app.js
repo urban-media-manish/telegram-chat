@@ -2017,6 +2017,18 @@ window.openChannelModal = function(channel = null) {
   modal.classList.add('active');
 };
 
+window.openAddChannelModal = function() {
+  window.openChannelModal(null);
+};
+
+window.lockAdminSession = function() {
+  if (confirm('Are you sure you want to lock the Admin Panel and log out?')) {
+    localStorage.removeItem('teletrack_admin_auth');
+    sessionStorage.removeItem('teletrack_admin_auth');
+    window.location.reload();
+  }
+};
+
 window.editChannel = function(tag) {
   const ch = allChannels.find(c => c.tag === tag);
   if (ch) openChannelModal(ch);

@@ -39,6 +39,14 @@ app.get('/chat', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'chat.html'));
 });
 
+app.get('/channel-analytics', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'channels-analytics.html'));
+});
+
+app.get('/channels-analytics', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'channels-analytics.html'));
+});
+
 app.get('/leads', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'leads.html'));
 });
@@ -324,16 +332,23 @@ app.get('/api/stats', async (req, res) => {
   res.json({ success: true, data: stats });
 });
 
-// 2. Get Leads (with date range & channel filter)
+// 2. Get Leads (with date range, channel & type filter)
 app.get('/api/leads', async (req, res) => {
-  const limit = parseInt(req.query.limit) || 200;
+  const limit = parseInt(req.query.limit) || 500;
   const channel = req.query.channel;
   const search = (req.query.search || '').toLowerCase();
   const range = req.query.range || 'all';
   const startDate = req.query.startDate;
   const endDate = req.query.endDate;
+  const type = req.query.type; // 'channel' or 'bot'
 
-  let leads = await db.getLeadsAsync(500, { channel, range, startDate, endDate });
+  let leads = await db.getLeadsAsync(1000, { channel, range, startDate, endDate });
+
+  if (type === 'channel') {
+    leads = leads.filter(l => l.joinType === 'channel_join');
+  } else if (type === 'bot') {
+    leads = leads.filter(l => l.joinType !== 'channel_join');
+  }
 
   if (channel && channel !== 'all') {
     leads = leads.filter(l => l.channelTag === channel);
@@ -446,22 +461,31 @@ app.post('/api/test-lead', async (req, res) => {
   });
 });
 
-// 7. Export Leads as CSV
+// 7. Export Leads as CSV (Supports type=channel and type=bot)
 app.get('/api/export', async (req, res) => {
-  const leads = await db.getLeadsAsync(5000);
-  let csv = 'ID,Date Time,Telegram User ID,Name,Username,Channel Tag,Channel Name,Start Param,Meta CAPI Status,Trace ID\n';
+  let leads = await db.getLeadsAsync(5000);
+  const type = req.query.type;
+  if (type === 'channel') {
+    leads = leads.filter(l => l.joinType === 'channel_join');
+  } else if (type === 'bot') {
+    leads = leads.filter(l => l.joinType !== 'channel_join');
+  }
+
+  let csv = 'ID,Date Time,Telegram User ID,Name,Username,Channel Tag,Channel Name,Type,Start Param,Meta CAPI Status,Trace ID\n';
 
   for (const l of leads) {
     const fullName = `"${(l.firstName + ' ' + l.lastName).trim().replace(/"/g, '""')}"`;
     const username = l.username ? `@${l.username}` : 'N/A';
     const channelName = `"${(l.channelName || '').replace(/"/g, '""')}"`;
     const param = `"${(l.rawParam || '').replace(/"/g, '""')}"`;
+    const joinType = l.joinType || 'bot_start';
     const id = l._id || l.id || '';
-    csv += `${id},"${l.createdAt}",${l.userId},${fullName},${username},${l.channelTag},${channelName},${param},${l.capiStatus},"${l.capiTraceId}"\n`;
+    csv += `${id},"${l.createdAt}",${l.userId},${fullName},${username},${l.channelTag},${channelName},${joinType},${param},${l.capiStatus},"${l.capiTraceId}"\n`;
   }
 
+  const prefix = type === 'channel' ? 'channel_subscribers' : (type === 'bot' ? 'bot_leads' : 'leads');
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', `attachment; filename=leads_export_${Date.now()}.csv`);
+  res.setHeader('Content-Disposition', `attachment; filename=${prefix}_export_${Date.now()}.csv`);
   res.send(csv);
 });
 

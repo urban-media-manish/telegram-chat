@@ -26,13 +26,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initPageData() {
   const path = window.location.pathname;
+  const pageAttr = document.body.getAttribute('data-page');
   loadAppConfig();
 
-  if (path === '/channels') {
+  if (path === '/channel-analytics' || path === '/channels-analytics' || pageAttr === 'channel_analytics') {
+    Promise.all([loadChannelAnalytics(), loadChannels(), loadChannelAnalyticsLeads()]);
+  } else if (path === '/channels') {
     loadChannels();
   } else if (path === '/links') {
     loadChannels();
-  } else if (path === '/leads') {
+  } else if (path === '/leads' || pageAttr === 'leads') {
     Promise.all([loadStats(), loadChannels(), loadLeads()]);
   } else {
     // /chat or default index
@@ -1349,13 +1352,13 @@ async function loadLeads() {
   const eDate = window.currentEndDate || '';
 
   try {
-    const res = await fetch(`/api/leads?search=${encodeURIComponent(search)}&channel=${encodeURIComponent(channel)}&range=${encodeURIComponent(range)}&startDate=${encodeURIComponent(sDate)}&endDate=${encodeURIComponent(eDate)}`);
+    const res = await fetch(`/api/leads?type=bot&search=${encodeURIComponent(search)}&channel=${encodeURIComponent(channel)}&range=${encodeURIComponent(range)}&startDate=${encodeURIComponent(sDate)}&endDate=${encodeURIComponent(eDate)}`);
     const json = await res.json();
     if (json.success) {
       renderLeadsTable(json.data);
     }
   } catch (err) {
-    console.error('Error loading leads:', err);
+    console.error('Error loading bot leads:', err);
   }
 }
 
@@ -1367,7 +1370,7 @@ function renderLeadsTable(leads) {
     tbody.innerHTML = `
       <tr>
         <td colspan="6" class="text-center py-6 text-muted">
-          No leads found matching your criteria.
+          No bot leads found matching your criteria.
         </td>
       </tr>
     `;
@@ -1389,10 +1392,7 @@ function renderLeadsTable(leads) {
       capiBadge = `<span class="badge badge-warning" title="${escapeHtml(lead.capiError || 'No Meta Pixel/Token configured')}">⚠️ Skipped</span>`;
     }
 
-    const isChannelJoin = lead.joinType === 'channel_join';
-    const typeBadge = isChannelJoin
-      ? `<span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:10px;padding:2px 6px;margin-top:4px;display:inline-block;">⚡ 1-Sec Auto-Approved</span>`
-      : `<span class="badge" style="background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3);font-size:10px;padding:2px 6px;margin-top:4px;display:inline-block;">💬 Direct Bot Chat</span>`;
+    const typeBadge = `<span class="badge" style="background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3);font-size:10px;padding:2px 6px;margin-top:4px;display:inline-block;">💬 Direct Bot Chat</span>`;
 
     html += `
       <tr>
@@ -1415,15 +1415,264 @@ function renderLeadsTable(leads) {
         <td>${capiBadge}</td>
         <td class="text-muted text-sm">${dateFormatted}</td>
         <td>
-          ${lead.joinType === 'channel_join'
-            ? `<span style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.3rem 0.65rem;border-radius:8px;background:rgba(6,182,212,0.12);color:#38bdf8;border:1px solid rgba(6,182,212,0.25);font-size:0.75rem;font-weight:700;">
-                📢 Channel Member
-              </span>`
-            : `<a href="/chat" class="btn btn-outline btn-sm" onclick="sessionStorage.setItem('pendingChatConv', '${lead.userId}_${lead.channelTag || 'default'}')">
-                💬 Open Chat
-              </a>`
-          }
+          <a href="/chat" class="btn btn-outline btn-sm" onclick="sessionStorage.setItem('pendingChatConv', '${lead.userId}_${lead.channelTag || 'default'}')">
+            💬 Open Chat
+          </a>
         </td>
+      </tr>
+    `;
+  }
+
+  tbody.innerHTML = html;
+}
+
+// ─── 📢 Dedicated Telegram Channel Analytics Controller ───────────────────────
+async function loadChannelAnalytics() {
+  const range = window.currentDateRange || 'all';
+  const sDate = window.currentStartDate || '';
+  const eDate = window.currentEndDate || '';
+
+  try {
+    const res = await fetch(`/api/stats?range=${encodeURIComponent(range)}&startDate=${encodeURIComponent(sDate)}&endDate=${encodeURIComponent(eDate)}`);
+    const json = await res.json();
+    if (json.success) {
+      const stats = json.data;
+
+      // 1. Top Channel KPIs
+      const todayEl = document.getElementById('kpiChannelToday');
+      if (todayEl) todayEl.textContent = stats.todayLeads || 0;
+
+      const totalEl = document.getElementById('kpiChannelTotal');
+      if (totalEl) totalEl.textContent = stats.channelJoins || 0;
+
+      const retRateEl = document.getElementById('kpiChannelRetentionRate');
+      const retCountsEl = document.getElementById('kpiRetentionCounts');
+      const activeMem = stats.retention?.activeMembers || 0;
+      const leftMem = stats.retention?.leftMembers || 0;
+      const totalMem = activeMem + leftMem;
+      const retRate = totalMem > 0 ? Math.round((activeMem / totalMem) * 100) : 100;
+      if (retRateEl) retRateEl.textContent = `${retRate}%`;
+      if (retCountsEl) retCountsEl.textContent = `${activeMem} Active / ${leftMem} Left`;
+
+      const syncRateEl = document.getElementById('kpiChannelSyncRate');
+      const syncCountsEl = document.getElementById('kpiChannelSyncCounts');
+      const succ = stats.successfulCapi || 0;
+      const fail = stats.failedCapi || 0;
+      const totalSync = succ + fail;
+      const syncRate = totalSync > 0 ? Math.round((succ / totalSync) * 100) : 100;
+      if (syncRateEl) syncRateEl.textContent = `${syncRate}%`;
+      if (syncCountsEl) syncCountsEl.textContent = `${succ} Synced to Pixel`;
+
+      // 2. Funnel & Device Stats
+      const clkEl = document.getElementById('funnelClicks');
+      if (clkEl) clkEl.textContent = stats.channelClicks || stats.totalClicks || 0;
+      const jnEl = document.getElementById('funnelJoins');
+      if (jnEl) jnEl.textContent = stats.channelJoins || 0;
+      const crEl = document.getElementById('funnelConversionRate');
+      if (crEl) crEl.textContent = `${stats.conversionRate || 0}% Rate`;
+
+      const cDev = stats.channelDeviceStats || stats.deviceStats || {};
+      const iosEl = document.getElementById('deviceIos');
+      if (iosEl) iosEl.textContent = cDev.iOS || 0;
+      const andEl = document.getElementById('deviceAndroid');
+      if (andEl) andEl.textContent = cDev.Android || 0;
+      const deskEl = document.getElementById('deviceDesktop');
+      if (deskEl) deskEl.textContent = cDev.Desktop || 0;
+
+      const actEl = document.getElementById('retentionActive');
+      if (actEl) actEl.textContent = activeMem;
+      const lftEl = document.getElementById('retentionLeft');
+      if (lftEl) lftEl.textContent = leftMem;
+
+      const fraudBlockedEl = document.getElementById('fraudBlockedCount');
+      if (fraudBlockedEl) fraudBlockedEl.textContent = stats.fraudBlockedCount || 0;
+
+      // 3. Platform Split (FB vs IG)
+      const pStats = stats.platformStats || { facebook: { clicks: 0, joins: 0, conversionRate: 0 }, instagram: { clicks: 0, joins: 0, conversionRate: 0 } };
+      const fbClicksEl = document.getElementById('fbClicksCount');
+      if (fbClicksEl) fbClicksEl.textContent = pStats.facebook?.clicks || 0;
+      const fbJoinsEl = document.getElementById('fbJoinsCount');
+      if (fbJoinsEl) fbJoinsEl.textContent = pStats.facebook?.joins || 0;
+      const fbCREl = document.getElementById('fbConversionRate');
+      if (fbCREl) fbCREl.textContent = `${pStats.facebook?.conversionRate || 0}% CR`;
+
+      const igClicksEl = document.getElementById('igClicksCount');
+      if (igClicksEl) igClicksEl.textContent = pStats.instagram?.clicks || 0;
+      const igJoinsEl = document.getElementById('igJoinsCount');
+      if (igJoinsEl) igJoinsEl.textContent = pStats.instagram?.joins || 0;
+      const igCREl = document.getElementById('igConversionRate');
+      if (igCREl) igCREl.textContent = `${pStats.instagram?.conversionRate || 0}% CR`;
+
+      // 4. Placements
+      const plStats = stats.placementStats || { reels: { clicks: 0, joins: 0 }, stories: { clicks: 0, joins: 0 }, feed: { clicks: 0, joins: 0 } };
+      const plReelsEl = document.getElementById('placementReels');
+      if (plReelsEl) plReelsEl.textContent = `${(plStats.reels?.clicks || 0) + (plStats.reels?.joins || 0)}`;
+      const plStoriesEl = document.getElementById('placementStories');
+      if (plStoriesEl) plStoriesEl.textContent = `${(plStats.stories?.clicks || 0) + (plStats.stories?.joins || 0)}`;
+      const plFeedEl = document.getElementById('placementFeed');
+      if (plFeedEl) plFeedEl.textContent = `${(plStats.feed?.clicks || 0) + (plStats.feed?.joins || 0)}`;
+
+      // 5. State & Geo
+      const statesCont = document.getElementById('topStatesContainer');
+      if (statesCont) {
+        const topStates = stats.geoStats?.topStates || [];
+        if (topStates.length === 0) {
+          statesCont.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: rgba(255,255,255,0.03); padding: 0.4rem 0.75rem; border-radius: 6px;">
+              <span style="color: #fff; font-weight: 600;">🇮🇳 All States</span>
+              <strong style="color: #38bdf8;">100% India</strong>
+            </div>
+          `;
+        } else {
+          let sHtml = '';
+          for (const item of topStates) {
+            sHtml += `
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: rgba(255,255,255,0.03); padding: 0.35rem 0.65rem; border-radius: 6px;">
+                <span style="color: #fff; font-weight: 600;">📍 ${escapeHtml(item.state)}</span>
+                <strong style="color: #38bdf8;">${item.count} Subscribers</strong>
+              </div>
+            `;
+          }
+          statesCont.innerHTML = sHtml;
+        }
+      }
+
+      // 6. Channel List Container Only
+      renderChannelOnlyCards(stats.channelBreakdown || []);
+    }
+  } catch (err) {
+    console.error('Error loading channel analytics:', err);
+  }
+}
+
+function renderChannelOnlyCards(breakdown) {
+  const container = document.getElementById('channelListContainerOnly');
+  if (!container) return;
+
+  const channelsOnly = breakdown.filter(c => c.destinationType === 'channel');
+  const query = (document.getElementById('searchChannelPage')?.value || '').toLowerCase().trim();
+
+  let filtered = channelsOnly;
+  if (query) {
+    filtered = filtered.filter(i => 
+      (i.name && i.name.toLowerCase().includes(query)) ||
+      (i.tag && i.tag.toLowerCase().includes(query))
+    );
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state py-4 text-center" style="grid-column: 1/-1;">
+        <p class="text-muted" style="font-size:0.85rem;">No Telegram channels found.</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  for (const item of filtered) {
+    html += `
+      <div class="channel-stat-card" style="background:rgba(20,14,40,0.85);border:1px solid rgba(6,182,212,0.25);border-radius:12px;padding:0.75rem 1rem;position:relative;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.4rem;">
+          <h4 style="font-size:0.85rem;font-weight:700;color:#fff;margin:0;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</h4>
+          <span style="font-size:9px;font-weight:800;background:rgba(56,189,248,0.15);color:#38bdf8;padding:1px 5px;border-radius:4px;text-transform:uppercase;">${escapeHtml(item.tag)}</span>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:0.4rem;margin-bottom:0.5rem;">
+          <span style="font-size:1.4rem;font-weight:800;color:#38bdf8;">${item.totalJoins}</span>
+          <span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">Subscribers</span>
+          <span style="font-size:0.7rem;font-weight:700;color:#10b981;margin-left:auto;">+${item.todayJoins} today</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.05);padding-top:0.4rem;">
+          <span style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:9px;padding:1px 5px;border-radius:4px;">📢 Auto-Approved</span>
+          <span style="font-size:9px;color:#10b981;font-weight:600;">✓ ${item.capiSuccess} Synced</span>
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+}
+
+window.filterChannelsListOnly = function() {
+  loadChannelAnalytics();
+};
+
+async function loadChannelAnalyticsLeads() {
+  const searchInput = document.getElementById('searchChannelSubscribers');
+  const search = searchInput ? searchInput.value.trim() : '';
+  const filterSelect = document.getElementById('channelSelectFilterOnly');
+  const channel = filterSelect ? filterSelect.value : 'all';
+
+  const range = window.currentDateRange || 'all';
+  const sDate = window.currentStartDate || '';
+  const eDate = window.currentEndDate || '';
+
+  try {
+    const res = await fetch(`/api/leads?type=channel&search=${encodeURIComponent(search)}&channel=${encodeURIComponent(channel)}&range=${encodeURIComponent(range)}&startDate=${encodeURIComponent(sDate)}&endDate=${encodeURIComponent(eDate)}`);
+    const json = await res.json();
+    if (json.success) {
+      renderChannelSubscribersTable(json.data);
+    }
+  } catch (err) {
+    console.error('Error loading channel subscribers:', err);
+  }
+}
+
+function renderChannelSubscribersTable(leads) {
+  const tbody = document.getElementById('channelSubscribersTableBody');
+  if (!tbody) return;
+
+  if (leads.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center py-6 text-muted">
+          No channel subscribers found matching your criteria.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  let html = '';
+  for (const lead of leads) {
+    const fullName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || 'Anonymous User';
+    const usernameDisplay = lead.username ? `@${lead.username}` : 'None';
+    const dateFormatted = new Date(lead.createdAt).toLocaleString();
+
+    let capiBadge = '';
+    if (lead.capiStatus === 'success') {
+      capiBadge = `<span class="badge badge-success">✓ Synced (Subscribe)</span>`;
+    } else if (lead.capiStatus === 'failed') {
+      capiBadge = `<span class="badge badge-danger" title="${escapeHtml(lead.capiError || 'Error')}">✗ Failed</span>`;
+    } else {
+      capiBadge = `<span class="badge badge-warning" title="${escapeHtml(lead.capiError || 'No Meta Pixel/Token configured')}">⚠️ Skipped</span>`;
+    }
+
+    const isLeft = lead.retentionStatus === 'left';
+    const statusBadge = isLeft
+      ? `<span class="badge badge-danger" style="font-size:10px;padding:2px 6px;">👋 Left Channel</span>`
+      : `<span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:10px;padding:2px 6px;">⚡ Auto-Approved</span>`;
+
+    html += `
+      <tr>
+        <td>
+          <div class="user-cell">
+            <div class="user-avatar" style="background: linear-gradient(135deg,#06b6d4,#38bdf8);">${escapeHtml(fullName.charAt(0).toUpperCase())}</div>
+            <div>
+              <div class="user-name">${escapeHtml(fullName)}</div>
+              <div class="user-handle">${escapeHtml(usernameDisplay)} • <span class="user-id">ID: ${lead.userId}</span></div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <span class="channel-badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);">${escapeHtml(lead.channelName || lead.channelTag)}</span>
+        </td>
+        <td>
+          <code class="param-code">${escapeHtml(lead.rawParam || 'channel_join')}</code>
+        </td>
+        <td>${capiBadge}</td>
+        <td class="text-muted text-sm">${dateFormatted}</td>
+        <td>${statusBadge}</td>
       </tr>
     `;
   }

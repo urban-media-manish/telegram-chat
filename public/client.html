@@ -135,11 +135,11 @@
       </div>
     </div>
 
-    <div style="display: flex; align-items: center; gap: 0.5rem;">
-      <button id="btnToggleNotification" title="Toggle Notifications" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
+      <button id="btnToggleNotification" class="btn-icon-only" title="Toggle Notifications" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 36px; height: 36px; min-width: 36px; max-width: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; overflow: hidden;">
         🔔
       </button>
-      <button class="btn-lock-mobile" onclick="lockClientSession()" title="Lock Chat" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.28); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <button class="btn-lock-mobile" onclick="lockClientSession()" title="Lock Chat" style="width: 36px; height: 36px; min-width: 36px; max-width: 36px; border-radius: 50%; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.28); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;">
         🔒
       </button>
     </div>

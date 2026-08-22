@@ -177,18 +177,23 @@ function initNotificationToggle() {
   if (!btn) return;
 
   function updateButtonState() {
+    const isCompact = btn.classList.contains('btn-icon-only') || !!btn.closest('.client-navbar') || window.innerWidth < 768;
     if (!('Notification' in window)) {
-      btn.innerHTML = '🔔 Notifications (Unsupported)';
+      btn.innerHTML = isCompact ? '🔔' : '🔔 Notifications (Unsupported)';
       btn.disabled = true;
       return;
     }
 
     if (Notification.permission === 'granted') {
-      btn.innerHTML = '<span style="color:#10b981;">●</span> 🔔 Notifications Active';
+      btn.innerHTML = isCompact 
+        ? '<span style="position:relative; display:inline-flex; align-items:center; justify-content:center;">🔔<span style="position:absolute; top:-2px; right:-2px; width:7px; height:7px; background:#10b981; border-radius:50%; border:1px solid #090c16;"></span></span>'
+        : '<span style="color:#10b981;">●</span> 🔔 Notifications Active';
       btn.classList.add('active');
+      btn.title = 'Notifications Active';
     } else {
-      btn.innerHTML = '🔔 Enable Notifications';
+      btn.innerHTML = isCompact ? '🔔' : '🔔 Enable Notifications';
       btn.classList.remove('active');
+      btn.title = 'Click to Enable Notifications';
     }
   }
 

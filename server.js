@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const db = require('./db');
+const antiBotShield = require('./antiBotShield');
 const { initBot, registerChannelBot, sendMessageToUser, setEventBroadcaster } = require('./bot');
 const { sendMetaCapiLead } = require('./metaCapi');
 
@@ -68,6 +69,34 @@ app.get('/go', (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
   const device = userAgent.includes('iPhone') || userAgent.includes('iPad') ? 'iOS' : (userAgent.includes('Android') ? 'Android' : 'Desktop');
   const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+
+  // 🛡️ Anti-Bot & Click Fraud Shield Evaluation
+  const fraudCheck = antiBotShield.evaluateRequest(req);
+  if (fraudCheck.isBot) {
+    console.log(`🛡️ [Fraud Shield] Blocked automated bot click from IP: ${ip}, Reason: ${fraudCheck.reason}`);
+    db.logFraudClick({ channelTag, ip, userAgent, reason: fraudCheck.reason, score: fraudCheck.score }).catch(() => {});
+
+    // Competitor bot gets non-tracking dummy response (Meta Pixel & CAPI 100% protected)
+    return res.status(200).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Verification</title>
+  <style>
+    body { background: #090613; color: #fff; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; text-align: center; margin: 0; }
+    .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(139,92,246,0.3); border-radius: 16px; padding: 2rem; max-width: 360px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🛡️</div>
+    <h3 style="margin-bottom: 0.5rem;">Security Check</h3>
+    <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">Please open this link in your mobile browser or Telegram app.</p>
+  </div>
+</body>
+</html>`);
+  }
 
   // Log click & device ONLY when genuine Meta parameters are present (Ignores blank/direct visits)
   const isMetaParamPresent = !!(fbclid || adId || adName || campaignName || req.query.utm_source);

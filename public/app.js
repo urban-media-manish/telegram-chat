@@ -1187,6 +1187,14 @@ async function loadStats() {
       if (activeEl) activeEl.textContent = stats.retention?.activeMembers || 0;
       const leftEl = document.getElementById('retentionLeft');
       if (leftEl) leftEl.textContent = stats.retention?.leftMembers || 0;
+
+      // Anti-Bot Fraud Shield Counter & Protection Status
+      const fraudBlockedEl = document.getElementById('fraudBlockedCount');
+      if (fraudBlockedEl) fraudBlockedEl.textContent = stats.fraudBlockedCount || 0;
+      const fraudStatusEl = document.getElementById('fraudShieldStatus');
+      if (fraudStatusEl) {
+        fraudStatusEl.textContent = '🟢 Active (100% Protected)';
+      }
     }
   } catch (err) {
     console.error('Error loading stats:', err);

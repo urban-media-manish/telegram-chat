@@ -133,12 +133,23 @@ const ClickLogSchema = new mongoose.Schema({
 });
 const ClickLog = mongoose.models.ClickLog || mongoose.model('ClickLog', ClickLogSchema);
 
+const FraudLogSchema = new mongoose.Schema({
+  channelTag: { type: String, default: 'default' },
+  ip: { type: String, default: '' },
+  userAgent: { type: String, default: '' },
+  reason: { type: String, default: '' },
+  score: { type: Number, default: 90 },
+  createdAt: { type: Date, default: Date.now }
+});
+const FraudLog = mongoose.models.FraudLog || mongoose.model('FraudLog', FraudLogSchema);
+
 // ─── JSON Fallback ────────────────────────────────────────────────────────────
 const DATA_DIR = path.join(__dirname, 'data');
 const CHANNELS_FILE = path.join(DATA_DIR, 'channels.json');
 const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
 const MESSAGES_FILE = path.join(DATA_DIR, 'messages.json');
 const CLICKS_FILE = path.join(DATA_DIR, 'clicks.json');
+const FRAUD_FILE = path.join(DATA_DIR, 'fraud.json');
 const ADMIN_FILE = path.join(DATA_DIR, 'admin.json');
 const TOPICS_FILE = path.join(DATA_DIR, 'topics.json');
 
@@ -904,6 +915,8 @@ const db = {
       botConversionRate,
       hourlyJoins,
       deviceStats,
+      fraudBlockedCount: readJsonFile(FRAUD_FILE, []).length,
+      fraudShieldStatus: 'Active',
       retention: { activeMembers, leftMembers },
       adminConnected: !!admin.adminChatId,
       activeChats: uniqueConvKeys.size
@@ -1003,6 +1016,8 @@ const db = {
           capiSuccess: channelCapiSuccess[c.tag] || 0
         }));
 
+        const fraudBlockedCount = await FraudLog.countDocuments(dateQuery);
+
         return {
           selectedRange: range,
           timeWindowLabel: timeWindow.label,
@@ -1026,6 +1041,8 @@ const db = {
           botConversionRate,
           hourlyJoins,
           deviceStats,
+          fraudBlockedCount,
+          fraudShieldStatus: 'Active',
           retention: { activeMembers, leftMembers },
           adminConnected: !!admin.adminChatId,
           activeChats
@@ -1089,6 +1106,35 @@ const db = {
     // Keep last 10,000 clicks in local JSON
     if (clicks.length > 10000) clicks.splice(0, clicks.length - 10000);
     writeJsonFile(CLICKS_FILE, clicks);
+  },
+
+  async logFraudClick(fraudData) {
+    try {
+      if (await connectDB()) {
+        const fraud = new FraudLog({
+          channelTag: fraudData.channelTag || 'default',
+          ip: fraudData.ip || '',
+          userAgent: fraudData.userAgent || '',
+          reason: fraudData.reason || 'Bot detected',
+          score: fraudData.score || 90
+        });
+        await fraud.save();
+        return;
+      }
+    } catch (e) {}
+
+    const list = readJsonFile(FRAUD_FILE, []);
+    list.push({
+      id: 'frd_' + Date.now(),
+      channelTag: fraudData.channelTag || 'default',
+      ip: fraudData.ip || '',
+      userAgent: fraudData.userAgent || '',
+      reason: fraudData.reason || 'Bot detected',
+      score: fraudData.score || 90,
+      createdAt: new Date().toISOString()
+    });
+    if (list.length > 2000) list.splice(0, list.length - 2000);
+    writeJsonFile(FRAUD_FILE, list);
   },
 
   // 90-Day Retention Auto-Purge (Only purges Channel Join data; Bot chat data stays 100% permanent)

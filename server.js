@@ -69,11 +69,8 @@ app.get('/go', (req, res) => {
   const device = userAgent.includes('iPhone') || userAgent.includes('iPad') ? 'iOS' : (userAgent.includes('Android') ? 'Android' : 'Desktop');
   const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
 
-  // Log click for conversion analytics strictly when arriving from genuine Meta Ads
-  const isMetaAdClick = !!(fbclid || adId || adName || campaignName || req.query.utm_source);
-  if (isMetaAdClick) {
-    db.logClick({ channelTag, adName, adId, campaignName, fbclid, device, ip }).catch(() => {});
-  }
+  // Log click and capture device intelligence (iPhone, Android, Desktop)
+  db.logClick({ channelTag, adName, adId, campaignName, fbclid, device, ip }).catch(() => {});
 
   // Determine destination URL: Channel Join Link OR Bot DM Start Link
   const isChannel = channel && (channel.destinationType === 'channel' || (channel.link && (channel.link.includes('t.me/+') || channel.link.includes('t.me/joinchat'))));

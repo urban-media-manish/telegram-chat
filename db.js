@@ -29,41 +29,85 @@ function resolveGeo(ip) {
   }
 }
 
-// ─── MongoDB Connection ───────────────────────────────────────────────────────
+// ─── MongoDB Connection & 60-Day Data Retention Engine ───────────────────────
 let isConnected = false;
-let connectionPromise = null;
+let isConnecting = false;
+
+const RETENTION_DAYS = 60;
+const RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+async function purgeOldData() {
+  const cutoff = new Date(Date.now() - RETENTION_MS);
+  try {
+    // 1. JSON storage 60-day retention cleanup
+    const leads = readJsonFile(LEADS_FILE, []);
+    const freshLeads = leads.filter(l => new Date(l.createdAt || 0) >= cutoff);
+    if (freshLeads.length < leads.length) {
+      writeJsonFile(LEADS_FILE, freshLeads);
+      console.log(`🧹 [Retention 60D] Purged ${leads.length - freshLeads.length} leads older than 60 days from JSON storage`);
+    }
+
+    const clicks = readJsonFile(CLICKS_FILE, []);
+    const freshClicks = clicks.filter(c => new Date(c.createdAt || 0) >= cutoff);
+    if (freshClicks.length < clicks.length) {
+      writeJsonFile(CLICKS_FILE, freshClicks);
+      console.log(`🧹 [Retention 60D] Purged ${clicks.length - freshClicks.length} clicks older than 60 days from JSON storage`);
+    }
+
+    const msgs = readJsonFile(MESSAGES_FILE, []);
+    const freshMsgs = msgs.filter(m => new Date(m.timestamp || m.createdAt || 0) >= cutoff);
+    if (freshMsgs.length < msgs.length) {
+      writeJsonFile(MESSAGES_FILE, freshMsgs);
+    }
+
+    // 2. MongoDB Atlas 60-day retention cleanup
+    if (mongoose.connection.readyState === 1) {
+      await Promise.all([
+        Lead.deleteMany({ createdAt: { $lt: cutoff } }),
+        ClickLog.deleteMany({ createdAt: { $lt: cutoff } }),
+        Message.deleteMany({ createdAt: { $lt: cutoff } }),
+        FraudLog.deleteMany({ createdAt: { $lt: cutoff } })
+      ]);
+      console.log(`🧹 [Retention 60D] MongoDB Atlas records older than 60 days purged successfully`);
+    }
+  } catch (err) {
+    console.warn('Retention purge notice:', err.message);
+  }
+}
+
+// Run 60-day retention purge on startup and every 12 hours
+setTimeout(purgeOldData, 3000);
+setInterval(purgeOldData, 12 * 60 * 60 * 1000);
 
 async function connectDB() {
-  if (isConnected && mongoose.connection.readyState === 1) return true;
+  if (mongoose.connection.readyState === 1) {
+    isConnected = true;
+    return true;
+  }
   const uri = process.env.MONGODB_URI;
   if (!uri) return false;
 
-  if (connectionPromise) return connectionPromise;
-
-  connectionPromise = (async () => {
-    try {
-      await mongoose.connect(uri, {
-        dbName: 'teletrack',
-        serverSelectionTimeoutMS: 4000,
-        connectTimeoutMS: 4000,
-        socketTimeoutMS: 8000
-      });
+  if (!isConnecting) {
+    isConnecting = true;
+    mongoose.connect(uri, {
+      dbName: 'teletrack',
+      serverSelectionTimeoutMS: 2000,
+      connectTimeoutMS: 2000,
+      socketTimeoutMS: 5000
+    }).then(() => {
       isConnected = true;
-      console.log('✅ MongoDB Atlas connected successfully!');
-      try {
-        await Lead.collection.dropIndex('userId_1');
-      } catch (err) {}
-      return true;
-    } catch (err) {
-      console.error('⚠️ MongoDB connection attempt failed (using JSON fallback):', err.message);
+      isConnecting = false;
+      console.log('✅ MongoDB Atlas connected successfully in background!');
+      purgeOldData().catch(() => {});
+    }).catch(() => {
       isConnected = false;
-      return false;
-    } finally {
-      connectionPromise = null;
-    }
-  })();
+      isConnecting = false;
+      setTimeout(() => { connectDB().catch(() => {}); }, 30000);
+    });
+  }
 
-  return connectionPromise;
+  // Never block HTTP requests! If not ready, instantly use sub-millisecond local JSON storage
+  return mongoose.connection.readyState === 1;
 }
 
 // Background auto-connect without blocking
@@ -1111,9 +1155,12 @@ const db = {
           ? { createdAt: { $gte: new Date(timeWindow.start), $lte: new Date(timeWindow.end) } }
           : {};
 
-        const leads = await Lead.find(dateQuery).lean();
-        const allLeadsCount = await Lead.countDocuments({});
-        const clicks = await ClickLog.find(dateQuery).limit(5000).lean();
+        const [leads, allLeadsCount, clicks, fraudBlockedCount] = await Promise.all([
+          Lead.find(dateQuery).lean(),
+          Lead.countDocuments({}),
+          ClickLog.find(dateQuery).limit(2000).lean(),
+          FraudLog.countDocuments(dateQuery)
+        ]);
 
         let todayLeads = 0, successfulCapi = 0, failedCapi = 0, channelJoins = 0, activeMembers = 0, leftMembers = 0;
         const channelCounts = {};
@@ -1273,8 +1320,7 @@ const db = {
           }
         }
 
-        const convs = await this.getConversations();
-        const activeChats = convs.length;
+        const activeChats = leads.filter(l => l.joinType !== 'channel_join').length;
 
         const totalClicks = clicks.length;
         const conversionRate = channelClicks > 0 ? Math.round((channelJoins / channelClicks) * 100) : 0;
@@ -1311,8 +1357,6 @@ const db = {
           todayJoins: channelTodayCounts[c.tag] || 0,
           capiSuccess: channelCapiSuccess[c.tag] || 0
         }));
-
-        const fraudBlockedCount = await FraudLog.countDocuments(dateQuery);
 
         return {
           selectedRange: range,

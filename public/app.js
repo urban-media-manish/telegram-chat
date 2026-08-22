@@ -1100,47 +1100,36 @@ async function loadStats() {
     if (json.success) {
       const stats = json.data;
 
-      // 1. Today's Bot Starts
-      const todayVal = stats.todayLeads || 0;
-      const todayEl = document.getElementById('todayLeadsCount') || document.getElementById('kpiTodayLeads');
-      if (todayEl) todayEl.textContent = todayVal;
+      const todayStartsEl = document.getElementById('todayLeadsCount') || document.getElementById('kpiTodayLeads');
+      if (todayStartsEl) todayStartsEl.textContent = stats.todayLeads || 0;
 
-      // 2. Active Conversations
       const activeChatsEl = document.getElementById('activeChatsCount') || document.getElementById('kpiActiveChats');
-      if (activeChatsEl) {
-        activeChatsEl.textContent = stats.activeChats !== undefined ? stats.activeChats : 0;
-      }
+      if (activeChatsEl) activeChatsEl.textContent = stats.botLeads || stats.activeChats || 0;
 
-      // 3. Total Bot Leads
-      const botLeadsVal = stats.botLeads !== undefined ? stats.botLeads : (stats.totalLeads || 0);
-      const totalEl = document.getElementById('totalLeadsCount') || document.getElementById('kpiTotalLeads');
-      if (totalEl) totalEl.textContent = botLeadsVal;
+      const totalLeadsEl = document.getElementById('totalLeadsCount') || document.getElementById('kpiTotalLeads');
+      if (totalLeadsEl) totalLeadsEl.textContent = stats.botLeads || 0;
 
-      // 4. Meta CAPI Sync Rate
       const succ = stats.successfulCapi || 0;
       const fail = stats.failedCapi || 0;
-      const totalSync = succ + fail;
-      const rate = totalSync > 0 ? Math.round((succ / totalSync) * 100) : 100;
-
+      const totalCapi = succ + fail;
+      const rate = totalCapi > 0 ? Math.round((succ / totalCapi) * 100) : 100;
       const syncRateEl = document.getElementById('syncRateValue') || document.getElementById('kpiSyncRate');
       if (syncRateEl) syncRateEl.textContent = `${rate}%`;
 
       const syncSubtextEl = document.getElementById('capiStatsSubtext') || document.getElementById('kpiSyncCount');
       if (syncSubtextEl) syncSubtextEl.textContent = `${succ} Synced to Meta Pixel`;
 
-      // Render Bot Accounts Live Performance Breakdown
+      // Render Bot Accounts Live Performance Breakdown (STRICTLY BOT ACCOUNTS ONLY)
       const chStatsCont = document.getElementById('channelBreakdownContainer') || document.getElementById('channelStatsContainer');
       if (chStatsCont) {
-        const tagsSeen = new Set();
+        const botAccounts = allChannels.filter(ch => ch.destinationType === 'bot' || (!ch.link?.includes('t.me/+') && !ch.link?.includes('joinchat')));
         const breakdown = [];
 
-        for (const ch of allChannels) {
-          tagsSeen.add(ch.tag);
-          const isChan = ch.destinationType === 'channel' || (ch.link && (ch.link.includes('t.me/+') || ch.link.includes('t.me/joinchat')));
+        for (const ch of botAccounts) {
           breakdown.push({
             tag: ch.tag,
             name: ch.name || ch.tag,
-            destinationType: isChan ? 'channel' : 'bot',
+            destinationType: 'bot',
             totalJoins: stats.channelCounts?.[ch.tag] || 0,
             todayJoins: stats.channelTodayCounts?.[ch.tag] || 0,
             capiSuccess: stats.channelBreakdown?.find(b => b.tag === ch.tag)?.capiSuccess || 0,
@@ -1148,30 +1137,7 @@ async function loadStats() {
           });
         }
 
-        // Catch any other dynamic channel tags found in DB
-        for (const [tag, count] of Object.entries(stats.channelCounts || {})) {
-          if (!tagsSeen.has(tag)) {
-            breakdown.push({
-              tag: tag,
-              name: tag === 'ad1' ? 'South Boook' : tag.toUpperCase(),
-              destinationType: 'bot',
-              totalJoins: count,
-              todayJoins: stats.channelTodayCounts?.[tag] || 0,
-              capiSuccess: stats.channelBreakdown?.find(b => b.tag === tag)?.capiSuccess || 0,
-              link: ''
-            });
-          }
-        }
-
         window.currentBreakdownData = breakdown;
-
-        // Update Pill Counts
-        const chanCount = breakdown.filter(i => i.destinationType === 'channel').length;
-        const botCount = breakdown.filter(i => i.destinationType === 'bot').length;
-        document.getElementById('countAllBreakdown') && (document.getElementById('countAllBreakdown').textContent = breakdown.length);
-        document.getElementById('countChanBreakdown') && (document.getElementById('countChanBreakdown').textContent = chanCount);
-        document.getElementById('countBotBreakdown') && (document.getElementById('countBotBreakdown').textContent = botCount);
-
         renderFilteredBreakdownCards();
       }
 

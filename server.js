@@ -54,18 +54,34 @@ app.get('/links', (req, res) => {
 app.get('/go', (req, res) => {
   const channelTag = (req.query.c || req.query.channel || 'ad1').trim();
   const fbclid = (req.query.fbclid || '').trim();
-  const pixelId = process.env.META_PIXEL_ID || '3572072086292080';
-
-  // Resolve the channel from DB to get bot username
+  const adName = (req.query.ad || req.query.ad_name || '').trim();
+  const adId = (req.query.ad_id || '').trim();
+  const campaignName = (req.query.camp || req.query.campaign || '').trim();
+  // Resolve the channel from DB to get bot username & custom pixel
   const channels = db.getChannels();
   const channel = channels.find(c => c.tag === channelTag);
+  const pixelId = (channel && channel.pixelId) || process.env.META_PIXEL_ID || '3572072086292080';
   const botUsername = (channel && channel.botUsername)
     ? channel.botUsername.replace(/^@/, '').trim()
     : (process.env.TELEGRAM_BOT_USERNAME || 'southboookbot');
 
-  // Build Telegram start param: channelTag_fbclid (if fbclid present)
-  const startParam = fbclid ? `${channelTag}_fbclid_${fbclid}` : channelTag;
-  const telegramUrl = `https://t.me/${botUsername}?start=${encodeURIComponent(startParam)}`;
+  const userAgent = req.headers['user-agent'] || '';
+  const device = userAgent.includes('iPhone') || userAgent.includes('iPad') ? 'iOS' : (userAgent.includes('Android') ? 'Android' : 'Desktop');
+  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+
+  // Log click for conversion analytics
+  db.logClick({ channelTag, adName, adId, campaignName, fbclid, device, ip }).catch(() => {});
+
+  // Determine destination URL: Channel Join Link OR Bot DM Start Link
+  const isChannel = channel && (channel.destinationType === 'channel' || (channel.link && (channel.link.includes('t.me/+') || channel.link.includes('t.me/joinchat'))));
+  let telegramUrl = '';
+
+  if (isChannel && channel.link) {
+    telegramUrl = channel.link.startsWith('http') ? channel.link : `https://${channel.link}`;
+  } else {
+    const startParam = fbclid ? `${channelTag}_fbclid_${fbclid}` : channelTag;
+    telegramUrl = `https://t.me/${botUsername}?start=${encodeURIComponent(startParam)}`;
+  }
   const sourceUrl = `${req.protocol}://${req.get('host')}/go?c=${channelTag}`;
 
   res.send(`<!DOCTYPE html>
@@ -88,19 +104,13 @@ app.get('/go', (req, res) => {
   fbq('init', '${pixelId}'${fbclid ? `, { "extern_id": "${fbclid}" }` : ''});
   ${fbclid ? `fbq('set', 'agent', 'tmgoogletagmanager', '${pixelId}');` : ''}
   fbq('track', 'PageView');
-  fbq('track', 'Lead', {
-    currency: 'INR',
-    value: 1.00,
-    content_name: '${(channel && channel.name) ? channel.name.replace(/'/g, "\\'") : channelTag}',
-    content_category: 'Telegram Ad Lead'
-  });
 
   // Auto redirect to Telegram
   window.location.href = '${telegramUrl}';
   </script>
   <noscript>
     <img height="1" width="1" style="display:none"
-      src="https://www.facebook.com/tr?id=${pixelId}&ev=Lead&noscript=1"/>
+      src="https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1"/>
   </noscript>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -400,20 +410,7 @@ app.get('/api/chat/conversations', async (req, res) => {
 
   if (channel && channel !== 'all') {
     const searchTag = channel.toLowerCase().trim();
-    const allChans = await db.getChannelsAsync();
-    const matchedChans = allChans.filter(c => 
-      (c.tag && c.tag.toLowerCase() === searchTag) ||
-      (c.botUsername && c.botUsername.toLowerCase() === searchTag) ||
-      (c.name && c.name.toLowerCase().includes(searchTag))
-    );
-    const validTags = new Set([searchTag, ...matchedChans.map(c => (c.tag || '').toLowerCase())]);
-    const validBots = new Set(matchedChans.map(c => (c.botUsername || '').toLowerCase().replace(/^@/, '')).filter(Boolean));
-
-    convs = convs.filter(c => {
-      const cTag = (c.channelTag || '').toLowerCase();
-      const cBot = (c.botUsername || '').toLowerCase().replace(/^@/, '');
-      return validTags.has(cTag) || (cBot && validBots.has(cBot));
-    });
+    convs = convs.filter(c => (c.channelTag || '').toLowerCase() === searchTag);
   }
 
   res.json({ success: true, data: convs });

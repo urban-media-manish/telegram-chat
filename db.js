@@ -46,6 +46,7 @@ connectDB().catch(() => {});
 const ChannelSchema = new mongoose.Schema({
   tag: { type: String, required: true, unique: true },
   name: String,
+  destinationType: { type: String, default: 'bot' },
   botUsername: { type: String, default: '' },
   link: { type: String, default: '' },
   buttonText: String,
@@ -67,6 +68,9 @@ const LeadSchema = new mongoose.Schema({
   channelTag: { type: String, default: 'default' },
   channelName: { type: String, default: 'Default / Master' },
   rawParam: { type: String, default: '' },
+  joinType: { type: String, default: 'bot_start' },
+  retentionStatus: { type: String, default: 'active' },
+  leftAt: { type: Date, default: null },
   capiStatus: { type: String, default: 'pending' },
   capiTraceId: { type: String, default: '' },
   capiError: { type: String, default: null },
@@ -117,11 +121,24 @@ const Message = mongoose.models.Message || mongoose.model('Message', MessageSche
 const Admin = mongoose.models.Admin || mongoose.model('Admin', AdminSchema);
 const Topic = mongoose.models.Topic || mongoose.model('Topic', TopicSchema);
 
+const ClickLogSchema = new mongoose.Schema({
+  channelTag: { type: String, default: 'default' },
+  adName: { type: String, default: '' },
+  adId: { type: String, default: '' },
+  campaignName: { type: String, default: '' },
+  fbclid: { type: String, default: '' },
+  device: { type: String, default: 'mobile' },
+  ip: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now }
+});
+const ClickLog = mongoose.models.ClickLog || mongoose.model('ClickLog', ClickLogSchema);
+
 // ─── JSON Fallback ────────────────────────────────────────────────────────────
 const DATA_DIR = path.join(__dirname, 'data');
 const CHANNELS_FILE = path.join(DATA_DIR, 'channels.json');
 const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
 const MESSAGES_FILE = path.join(DATA_DIR, 'messages.json');
+const CLICKS_FILE = path.join(DATA_DIR, 'clicks.json');
 const ADMIN_FILE = path.join(DATA_DIR, 'admin.json');
 const TOPICS_FILE = path.join(DATA_DIR, 'topics.json');
 
@@ -246,27 +263,21 @@ const db = {
   },
 
   async getChannelsAsync() {
-    if (cachedChannels && cachedChannels.length > 0) return cachedChannels;
-    const jsonChannels = readJsonFile(CHANNELS_FILE, []);
     try {
       if (await connectDB()) {
-        let dbChannels = await Channel.find({});
-        if (dbChannels.length === 0) {
-          if (jsonChannels.length > 0) {
-            for (const ch of jsonChannels) {
-              await Channel.findOneAndUpdate({ tag: ch.tag }, ch, { upsert: true, returnDocument: 'after' });
-            }
-            dbChannels = await Channel.find({});
-          }
+        const dbChannels = await Channel.find({}).lean();
+        if (dbChannels.length > 0) {
+          cachedChannels = dbChannels;
+          writeJsonFile(CHANNELS_FILE, dbChannels);
+          return dbChannels;
         }
-        const list = dbChannels.map(c => c.toObject());
-        if (list.length > 0) writeJsonFile(CHANNELS_FILE, list);
-        return list;
       }
     } catch (e) {
       console.warn('⚠️ getChannelsAsync fallback to JSON:', e.message);
     }
-    return readJsonFile(CHANNELS_FILE, []);
+    const jsonChannels = readJsonFile(CHANNELS_FILE, []);
+    cachedChannels = jsonChannels;
+    return jsonChannels;
   },
 
   getChannelByTag(tag) {
@@ -281,6 +292,7 @@ const db = {
     const record = {
       tag: cleanTag,
       name: channelData.name || `Channel ${cleanTag}`,
+      destinationType: channelData.destinationType || (channelData.link && (channelData.link.includes('t.me/+') || channelData.link.includes('t.me/joinchat')) ? 'channel' : 'bot'),
       botUsername: channelData.botUsername !== undefined ? channelData.botUsername : '',
       link: channelData.link || 'https://t.me/',
       buttonText: channelData.buttonText || `Join ${channelData.name || cleanTag}`,
@@ -356,10 +368,8 @@ const db = {
   async getLeadsAsync(limit = 100) {
     try {
       if (await connectDB()) {
-        const leads = await Lead.find({}).sort({ lastActiveAt: -1 }).limit(limit);
-        const list = leads.map(l => l.toObject());
-        writeJsonFile(LEADS_FILE, list);
-        return list;
+        const leads = await Lead.find({}).sort({ lastActiveAt: -1 }).limit(limit).lean();
+        return leads;
       }
     } catch (e) {
       console.warn('⚠️ getLeadsAsync fallback to JSON:', e.message);
@@ -383,6 +393,8 @@ const db = {
           channelTag: tag,
           channelName: leadData.channelName || 'Default / Master',
           rawParam: leadData.rawParam || '',
+          joinType: leadData.joinType || 'bot_start',
+          retentionStatus: leadData.retentionStatus || 'active',
           capiStatus: leadData.capiStatus || 'pending',
           capiTraceId: leadData.capiTraceId || '',
           capiError: leadData.capiError || null
@@ -413,6 +425,7 @@ const db = {
       existing.channelTag = tag;
       existing.channelName = leadData.channelName || existing.channelName;
       existing.rawParam = leadData.rawParam || existing.rawParam;
+      if (leadData.joinType) existing.joinType = leadData.joinType;
       if (leadData.capiStatus && leadData.capiStatus !== 'skipped') {
         existing.capiStatus = leadData.capiStatus;
         existing.capiTraceId = leadData.capiTraceId || existing.capiTraceId;
@@ -433,6 +446,7 @@ const db = {
       channelTag: tag,
       channelName: leadData.channelName || 'Default / Master',
       rawParam: leadData.rawParam || '',
+      joinType: leadData.joinType || 'bot_start',
       capiStatus: leadData.capiStatus || 'pending',
       capiTraceId: leadData.capiTraceId || '',
       capiError: leadData.capiError || null,
@@ -530,14 +544,15 @@ const db = {
 
     const convMap = new Map();
 
-    // 1. Process Leads
+    // 1. Process Leads (Only Bot Chat Leads — Channel Joins do not have 2-way chat)
     for (const lead of leads) {
+      if (lead.joinType === 'channel_join') continue;
       const uid = String(lead.userId);
       if (EXCLUDE.has(uid)) continue;
       const displayName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || (lead.username ? `@${lead.username}` : `User ${lead.userId}`);
-      const chInfo = this.getChannelInfo(lead.channelTag, '');
-      const botKey = chInfo.botKey || chInfo.tag;
-      const convKey = `${uid}_${botKey}`;
+      const chTag = lead.channelTag || 'default';
+      const chInfo = this.getChannelInfo(chTag, '');
+      const convKey = `${uid}_${chTag}`;
 
       convMap.set(convKey, {
         convId: convKey,
@@ -545,8 +560,8 @@ const db = {
         userChatId: lead.userId,
         userName: displayName,
         userUsername: lead.username || '',
-        channelTag: chInfo.tag,
-        channelName: chInfo.name,
+        channelTag: chTag,
+        channelName: lead.channelName || chInfo.name,
         botUsername: chInfo.botUsername,
         botToken: chInfo.botToken,
         lastMessage: 'Started bot',
@@ -556,13 +571,13 @@ const db = {
       });
     }
 
-    // 2. Process Messages
+    // 2. Process Messages (Strictly mapped to specific account tag)
     for (const msg of messages) {
       const uid = String(msg.userId);
       if (EXCLUDE.has(uid)) continue;
-      const chInfo = this.getChannelInfo(msg.channelTag, msg.botToken);
-      const botKey = chInfo.botKey || chInfo.tag;
-      const convKey = `${uid}_${botKey}`;
+      const chTag = msg.channelTag || 'default';
+      const chInfo = this.getChannelInfo(chTag, msg.botToken);
+      const convKey = `${uid}_${chTag}`;
 
       const existing = convMap.get(convKey) || {
         convId: convKey,
@@ -570,7 +585,7 @@ const db = {
         userChatId: msg.userChatId || msg.userId,
         userName: msg.userName || (msg.userUsername ? `@${msg.userUsername}` : `User ${msg.userId}`),
         userUsername: msg.userUsername || '',
-        channelTag: chInfo.tag,
+        channelTag: chTag,
         channelName: chInfo.name,
         botUsername: chInfo.botUsername,
         botToken: msg.botToken || chInfo.botToken || '',
@@ -724,17 +739,43 @@ const db = {
     const channels = this.getChannels();
     const admin = this.getAdminConfig();
     const messages = readJsonFile(MESSAGES_FILE, []);
+    const clicks = readJsonFile(CLICKS_FILE, []);
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    let todayLeads = 0, successfulCapi = 0, failedCapi = 0;
+    let todayLeads = 0, successfulCapi = 0, failedCapi = 0, channelJoins = 0, activeMembers = 0, leftMembers = 0;
     const channelCounts = {};
+    const channelTodayCounts = {};
+    const channelCapiSuccess = {};
+    const hourlyJoins = new Array(24).fill(0);
+    const deviceStats = { iOS: 0, Android: 0, Desktop: 0 };
+
     for (const lead of leads) {
-      const time = new Date(lead.createdAt).getTime();
-      if (time >= startOfToday) todayLeads++;
+      const date = new Date(lead.createdAt);
+      const time = date.getTime();
+      const isToday = time >= startOfToday;
+      if (isToday) {
+        todayLeads++;
+        const hr = date.getHours();
+        hourlyJoins[hr] = (hourlyJoins[hr] || 0) + 1;
+      }
       if (lead.capiStatus === 'success') successfulCapi++;
       if (lead.capiStatus === 'failed') failedCapi++;
+      if (lead.joinType === 'channel_join') {
+        channelJoins++;
+        if (lead.retentionStatus === 'left') leftMembers++;
+        else activeMembers++;
+      }
       const ch = lead.channelTag || 'other';
       channelCounts[ch] = (channelCounts[ch] || 0) + 1;
+      if (isToday) channelTodayCounts[ch] = (channelTodayCounts[ch] || 0) + 1;
+      if (lead.capiStatus === 'success') channelCapiSuccess[ch] = (channelCapiSuccess[ch] || 0) + 1;
+    }
+
+    for (const clk of clicks) {
+      const dev = clk.device || 'Android';
+      if (dev === 'iOS') deviceStats.iOS++;
+      else if (dev === 'Desktop') deviceStats.Desktop++;
+      else deviceStats.Android++;
     }
 
     const uniqueConvKeys = new Set();
@@ -745,13 +786,35 @@ const db = {
       uniqueConvKeys.add(`${m.userId}_${m.channelTag || 'default'}`);
     }
 
+    const totalClicks = clicks.length;
+    const conversionRate = totalClicks > 0 ? Math.round((channelJoins / totalClicks) * 100) : 0;
+    const botLeads = leads.filter(l => l.joinType !== 'channel_join').length;
+
+    const channelBreakdown = channels.map(c => ({
+      tag: c.tag,
+      name: c.name || c.tag,
+      destinationType: c.destinationType || 'bot',
+      totalJoins: channelCounts[c.tag] || 0,
+      todayJoins: channelTodayCounts[c.tag] || 0,
+      capiSuccess: channelCapiSuccess[c.tag] || 0
+    }));
+
     return {
       totalLeads: leads.length,
+      botLeads,
+      channelJoins,
       todayLeads,
       successfulCapi,
       failedCapi,
       totalChannels: channels.length,
       channelCounts,
+      channelTodayCounts,
+      channelBreakdown,
+      totalClicks,
+      conversionRate,
+      hourlyJoins,
+      deviceStats,
+      retention: { activeMembers, leftMembers },
       adminConnected: !!admin.adminChatId,
       activeChats: uniqueConvKeys.size
     };
@@ -760,33 +823,80 @@ const db = {
   async getStatsAsync() {
     try {
       if (await connectDB()) {
-        const leads = (await Lead.find({})).map(l => l.toObject());
-        writeJsonFile(LEADS_FILE, leads);
+        const leads = await Lead.find({}).lean();
+        const clicks = await ClickLog.find({}).limit(5000).lean();
         const channels = this.getChannels();
         const admin = this.getAdminConfig();
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-        let todayLeads = 0, successfulCapi = 0, failedCapi = 0;
+        let todayLeads = 0, successfulCapi = 0, failedCapi = 0, channelJoins = 0, activeMembers = 0, leftMembers = 0;
         const channelCounts = {};
+        const channelTodayCounts = {};
+        const channelCapiSuccess = {};
+        const hourlyJoins = new Array(24).fill(0);
+        const deviceStats = { iOS: 0, Android: 0, Desktop: 0 };
+
         for (const lead of leads) {
-          const time = new Date(lead.createdAt).getTime();
-          if (time >= startOfToday) todayLeads++;
+          const date = new Date(lead.createdAt);
+          const time = date.getTime();
+          const isToday = time >= startOfToday;
+          if (isToday) {
+            todayLeads++;
+            const hr = date.getHours();
+            hourlyJoins[hr] = (hourlyJoins[hr] || 0) + 1;
+          }
           if (lead.capiStatus === 'success') successfulCapi++;
           if (lead.capiStatus === 'failed') failedCapi++;
+          if (lead.joinType === 'channel_join') {
+            channelJoins++;
+            if (lead.retentionStatus === 'left') leftMembers++;
+            else activeMembers++;
+          }
           const ch = lead.channelTag || 'other';
           channelCounts[ch] = (channelCounts[ch] || 0) + 1;
+          if (isToday) channelTodayCounts[ch] = (channelTodayCounts[ch] || 0) + 1;
+          if (lead.capiStatus === 'success') channelCapiSuccess[ch] = (channelCapiSuccess[ch] || 0) + 1;
+        }
+
+        for (const clk of clicks) {
+          const dev = clk.device || 'Android';
+          if (dev === 'iOS') deviceStats.iOS++;
+          else if (dev === 'Desktop') deviceStats.Desktop++;
+          else deviceStats.Android++;
         }
 
         const convs = await this.getConversations();
         const activeChats = convs.length;
 
+        const totalClicks = clicks.length;
+        const conversionRate = totalClicks > 0 ? Math.round((channelJoins / totalClicks) * 100) : 0;
+        const botLeads = leads.filter(l => l.joinType !== 'channel_join').length;
+
+        const channelBreakdown = channels.map(c => ({
+          tag: c.tag,
+          name: c.name || c.tag,
+          destinationType: c.destinationType || 'bot',
+          totalJoins: channelCounts[c.tag] || 0,
+          todayJoins: channelTodayCounts[c.tag] || 0,
+          capiSuccess: channelCapiSuccess[c.tag] || 0
+        }));
+
         return {
           totalLeads: leads.length,
+          botLeads,
+          channelJoins,
           todayLeads,
           successfulCapi,
           failedCapi,
           totalChannels: channels.length,
           channelCounts,
+          channelTodayCounts,
+          channelBreakdown,
+          totalClicks,
+          conversionRate,
+          hourlyJoins,
+          deviceStats,
+          retention: { activeMembers, leftMembers },
           adminConnected: !!admin.adminChatId,
           activeChats
         };
@@ -795,7 +905,102 @@ const db = {
       console.warn('⚠️ getStatsAsync fallback to JSON:', e.message);
     }
     return this.getStats();
+  },
+
+  async markLeadLeft(userId, chatId) {
+    const uid = String(userId);
+    try {
+      if (await connectDB()) {
+        await Lead.updateMany({ userId: uid }, { $set: { retentionStatus: 'left', leftAt: new Date() } });
+      }
+    } catch (e) {}
+
+    const leads = readJsonFile(LEADS_FILE, []);
+    let modified = false;
+    for (const l of leads) {
+      if (String(l.userId) === uid) {
+        l.retentionStatus = 'left';
+        l.leftAt = new Date().toISOString();
+        modified = true;
+      }
+    }
+    if (modified) writeJsonFile(LEADS_FILE, leads);
+  },
+
+  async logClick(clickData) {
+    try {
+      if (await connectDB()) {
+        const click = new ClickLog({
+          channelTag: clickData.channelTag || 'default',
+          adName: clickData.adName || '',
+          adId: clickData.adId || '',
+          campaignName: clickData.campaignName || '',
+          fbclid: clickData.fbclid || '',
+          device: clickData.device || 'mobile',
+          ip: clickData.ip || ''
+        });
+        await click.save();
+        return;
+      }
+    } catch (e) {}
+
+    const clicks = readJsonFile(CLICKS_FILE, []);
+    clicks.push({
+      id: 'clk_' + Date.now(),
+      channelTag: clickData.channelTag || 'default',
+      adName: clickData.adName || '',
+      adId: clickData.adId || '',
+      campaignName: clickData.campaignName || '',
+      fbclid: clickData.fbclid || '',
+      device: clickData.device || 'mobile',
+      ip: clickData.ip || '',
+      createdAt: new Date().toISOString()
+    });
+    // Keep last 10,000 clicks in local JSON
+    if (clicks.length > 10000) clicks.splice(0, clicks.length - 10000);
+    writeJsonFile(CLICKS_FILE, clicks);
+  },
+
+  // 90-Day Retention Auto-Purge (Only purges Channel Join data; Bot chat data stays 100% permanent)
+  async purgeOldChannelData() {
+    const cutoffDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    try {
+      if (await connectDB()) {
+        const deletedLeads = await Lead.deleteMany({
+          joinType: 'channel_join',
+          createdAt: { $lt: cutoffDate }
+        });
+        const deletedClicks = await ClickLog.deleteMany({
+          createdAt: { $lt: cutoffDate }
+        });
+        if (deletedLeads.deletedCount || deletedClicks.deletedCount) {
+          console.log(`🧹 [90-Day Retention Purge] Removed ${deletedLeads.deletedCount || 0} old channel joins and ${deletedClicks.deletedCount || 0} old click logs.`);
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Purge error in Mongo fallback to JSON:', e.message);
+    }
+
+    // Local JSON purge for channel joins only
+    const leads = readJsonFile(LEADS_FILE, []);
+    const validLeads = leads.filter(l => {
+      if (l.joinType !== 'channel_join') return true; // Keep ALL bot chat leads permanent!
+      return new Date(l.createdAt).getTime() >= cutoffDate.getTime();
+    });
+    if (validLeads.length !== leads.length) {
+      writeJsonFile(LEADS_FILE, validLeads);
+    }
+
+    const clicks = readJsonFile(CLICKS_FILE, []);
+    const validClicks = clicks.filter(c => new Date(c.createdAt).getTime() >= cutoffDate.getTime());
+    if (validClicks.length !== clicks.length) {
+      writeJsonFile(CLICKS_FILE, validClicks);
+    }
   }
 };
+
+// Run 90-day retention cleanup on startup & once daily
+setTimeout(() => db.purgeOldChannelData().catch(() => {}), 5000);
+setInterval(() => db.purgeOldChannelData().catch(() => {}), 24 * 60 * 60 * 1000);
 
 module.exports = db;

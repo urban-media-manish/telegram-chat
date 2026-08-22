@@ -136,16 +136,17 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
           rawParam.toLowerCase().startsWith(c.tag.toLowerCase() + '-')
         );
       }
-      if (!matchedChannel && botToken) {
-        const cleanTok = String(botToken).trim();
-        const tokPrefix = cleanTok.split(':')[0];
-        matchedChannel = channels.find(c => c.botToken && c.botToken.trim() === cleanTok) ||
-                         channels.find(c => c.botToken && c.botToken.startsWith(tokPrefix));
+      // Fallback: If no start param, match the designated primary bot channel or ad1 (South Boook)
+      if (!matchedChannel) {
+        matchedChannel = channels.find(c => c.tag === 'ad1') ||
+                         channels.find(c => c.botUsername && c.botUsername.toLowerCase() === 'southboookbot') ||
+                         channels[0];
       }
     }
 
-    const channelTag = matchedChannel ? matchedChannel.tag : (rawParam || 'default');
-    const channelName = matchedChannel ? matchedChannel.name : (rawParam ? `Campaign (${rawParam})` : 'Direct Telegram Bot');
+    const channelTag = matchedChannel ? matchedChannel.tag : (rawParam || 'ad1');
+    const channelName = matchedChannel ? matchedChannel.name : 'South Boook';
+    const displayParam = rawParam || channelTag;
 
     // Send Lead to Meta Conversions API (CAPI)
     const capiResult = await sendMetaCapiLead({
@@ -168,7 +169,7 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
       languageCode: user.language_code || 'en',
       channelTag: channelTag,
       channelName: channelName,
-      rawParam: rawParam,
+      rawParam: rawParam || channelTag,
       capiStatus: capiResult.skipped ? 'skipped' : (capiResult.success ? 'success' : 'failed'),
       capiTraceId: capiResult.traceId || '',
       capiError: capiResult.error || (capiResult.skipped ? 'Missing Meta credentials' : null)
@@ -256,6 +257,121 @@ function attachBotListeners(bot, specificChannel = null, botToken = '') {
         } catch (err) {}
       }
     }
+  });
+
+  // 3.5 Handle Telegram Channel "Request to Join" (1-Second Auto-Approval + Meta CAPI — Zero DM)
+  bot.on('chat_join_request', async (joinReq) => {
+    const user = joinReq.from;
+    const chat = joinReq.chat;
+    const inviteLink = joinReq.invite_link;
+    const inviteLinkName = inviteLink?.name || '';
+    const inviteUrl = inviteLink?.invite_link || '';
+
+    console.log(`\n⚡ [Channel Join Request] User: ${user.id} (@${user.username || 'none'}), Channel: "${chat.title}" (${chat.id})`);
+
+    // 1. Instant 1-Second Auto-Approval into the Channel
+    try {
+      await bot.approveChatJoinRequest(chat.id, user.id);
+      console.log(`✅ [1-Sec Auto-Approved] User ${user.id} approved into "${chat.title}"!`);
+    } catch (approveErr) {
+      console.error(`❌ Failed to auto-approve join request:`, approveErr.message);
+    }
+
+    // 2. Channel & Pixel Matching Logic
+    const channels = db.getChannels();
+    let matchedChannel = specificChannel;
+
+      if (inviteLinkName) {
+        matchedChannel = channels.find(c =>
+          inviteLinkName.toLowerCase() === c.tag.toLowerCase() ||
+          inviteLinkName.toLowerCase().startsWith(c.tag.toLowerCase() + '_') ||
+          inviteLinkName.toLowerCase().startsWith(c.tag.toLowerCase() + '-')
+        );
+      }
+      if (!matchedChannel && inviteUrl) {
+        matchedChannel = channels.find(c => c.link && (c.link.includes(inviteUrl) || inviteUrl.includes(c.link)));
+      }
+      if (!matchedChannel) {
+        matchedChannel = channels.find(c => c.destinationType === 'channel' && c.name && c.name.toLowerCase() === (chat.title || '').toLowerCase()) ||
+                         channels.find(c => c.name && c.name.toLowerCase() === (chat.title || '').toLowerCase());
+      }
+      if (!matchedChannel && botToken) {
+        const cleanTok = String(botToken).trim();
+        const tokPrefix = cleanTok.split(':')[0];
+        matchedChannel = channels.find(c => c.destinationType === 'channel' && c.botToken && c.botToken.trim() === cleanTok) ||
+                         channels.find(c => c.destinationType === 'channel' && c.botToken && c.botToken.startsWith(tokPrefix)) ||
+                         channels.find(c => c.destinationType === 'channel') ||
+                         channels.find(c => c.botToken && c.botToken.trim() === cleanTok);
+      }
+      if (!matchedChannel) {
+        matchedChannel = channels.find(c => c.destinationType === 'channel') || channels[0];
+      }
+
+    const channelTag = matchedChannel ? matchedChannel.tag : (inviteLinkName || 'channel_join');
+    const channelName = matchedChannel ? matchedChannel.name : (chat.title || 'Telegram Channel');
+    const rawParam = inviteLinkName || `join_${chat.id}`;
+
+    // 3. Send Subscribe conversion to Meta Conversions API (CAPI)
+    const capiResult = await sendMetaCapiLead({
+      userId: user.id,
+      param: rawParam,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      username: user.username,
+      customPixelId: matchedChannel?.pixelId,
+      customAccessToken: matchedChannel?.accessToken,
+      channelName: channelName,
+      eventName: 'Subscribe'
+    });
+
+    // 4. Record Subscriber Lead into Database
+    const leadRecord = await db.addLead({
+      userId: user.id,
+      firstName: user.first_name || '',
+      lastName: user.last_name || '',
+      username: user.username || '',
+      languageCode: user.language_code || 'en',
+      channelTag: channelTag,
+      channelName: channelName,
+      rawParam: rawParam,
+      joinType: 'channel_join',
+      capiStatus: capiResult.skipped ? 'skipped' : (capiResult.success ? 'success' : 'failed'),
+      capiTraceId: capiResult.traceId || '',
+      capiError: capiResult.error || (capiResult.skipped ? 'Missing Meta credentials' : null)
+    });
+
+    console.log(`💾 [Channel Subscriber Stored] ID: ${leadRecord.id}, Channel: ${channelName}, CAPI: ${leadRecord.capiStatus}`);
+    notifyRealtime({ type: 'new_lead', lead: leadRecord, joinType: 'channel_join' });
+
+    // 5. Notify Admin Helpdesk / Group
+    const adminConfig = db.getAdminConfig();
+    if (adminConfig.adminChatId) {
+      const adminNotice = `⚡ <b>New Channel Subscriber Auto-Approved!</b> 🎯\n\n` +
+        `👤 <b>User:</b> ${user.first_name || ''} ${user.last_name || ''} (@${user.username || 'none'})\n` +
+        `🆔 <b>User ID:</b> <code>${user.id}</code>\n` +
+        `📢 <b>Channel:</b> ${chat.title || channelName}\n` +
+        `🏷️ <b>Tag:</b> <code>${channelTag}</code>\n` +
+        `⚡ <b>Meta CAPI:</b> ${leadRecord.capiStatus === 'success' ? '✅ Synced' : '⚠️ ' + leadRecord.capiStatus}`;
+
+      try {
+        await bot.sendMessage(adminConfig.adminChatId, adminNotice, { parse_mode: 'HTML' });
+      } catch (err) {}
+    }
+  });
+
+  // 3.6 Handle Channel Member Leave / Status Update (Retention Tracking)
+  bot.on('chat_member', async (memberUpdate) => {
+    try {
+      const oldStatus = memberUpdate.old_chat_member?.status;
+      const newStatus = memberUpdate.new_chat_member?.status;
+      const user = memberUpdate.new_chat_member?.user || memberUpdate.from;
+      const chat = memberUpdate.chat;
+
+      if ((newStatus === 'left' || newStatus === 'kicked') && (oldStatus === 'member' || oldStatus === 'administrator')) {
+        console.log(`👋 [Channel Member Left] User ${user.id} (@${user.username || 'none'}) left "${chat.title || 'Channel'}"`);
+        await db.markLeadLeft(user.id, chat.id);
+      }
+    } catch (err) {}
   });
 
   // 4. Handle incoming user messages & admin replies
@@ -598,10 +714,18 @@ function startBotInstance(token, specificChannel = null) {
   try {
     const bot = new TelegramBot(cleanToken, {
       polling: {
-        interval: 1000, // 1s polling — balanced speed vs connection stability
+        interval: 300,
         autoStart: true,
         params: {
-          timeout: 30  // Long-poll 30s — reduces reconnect frequency
+          timeout: 20,
+          allowed_updates: [
+            'message',
+            'edited_message',
+            'callback_query',
+            'chat_join_request',
+            'chat_member',
+            'my_chat_member'
+          ]
         }
       }
     });

@@ -33,14 +33,10 @@ function initPageData() {
   } else if (path === '/links') {
     loadChannels();
   } else if (path === '/leads') {
-    loadStats();
-    loadChannels();
-    loadLeads();
+    Promise.all([loadStats(), loadChannels(), loadLeads()]);
   } else {
     // /chat or default index
-    loadChannels();
-    loadConversations();
-    loadStats();
+    Promise.all([loadChannels(), loadConversations(), loadStats()]);
   }
 }
 
@@ -1047,10 +1043,170 @@ async function loadStats() {
         syncRateEl.textContent = `${rate}%`;
         syncCountEl.textContent = `${stats.successfulCapi || 0} Synced / ${stats.failedCapi || 0} Failed`;
       }
+
+      // Render Channel-wise Live Performance Breakdown (Scalable for 40+ Channels)
+      const chStatsCont = document.getElementById('channelStatsContainer');
+      if (chStatsCont) {
+        const tagsSeen = new Set();
+        const breakdown = [];
+
+        for (const ch of allChannels) {
+          tagsSeen.add(ch.tag);
+          const isChan = ch.destinationType === 'channel' || (ch.link && (ch.link.includes('t.me/+') || ch.link.includes('t.me/joinchat')));
+          breakdown.push({
+            tag: ch.tag,
+            name: ch.name || ch.tag,
+            destinationType: isChan ? 'channel' : 'bot',
+            totalJoins: stats.channelCounts?.[ch.tag] || 0,
+            todayJoins: stats.channelTodayCounts?.[ch.tag] || 0,
+            capiSuccess: stats.channelCounts?.[ch.tag] || 0
+          });
+        }
+
+        if (stats.channelCounts) {
+          for (const [tag, count] of Object.entries(stats.channelCounts)) {
+            if (!tagsSeen.has(tag)) {
+              breakdown.push({
+                tag: tag,
+                name: tag === 'meta_ad' ? 'Southboookbot' : (tag === 'ad1' ? 'South Boook' : tag),
+                destinationType: 'bot',
+                totalJoins: count,
+                todayJoins: stats.channelTodayCounts?.[tag] || 0,
+                capiSuccess: count
+              });
+            }
+          }
+        }
+
+        window.currentBreakdownData = breakdown;
+
+        // Update Pill Counts
+        const chanCount = breakdown.filter(i => i.destinationType === 'channel').length;
+        const botCount = breakdown.filter(i => i.destinationType === 'bot').length;
+        document.getElementById('countAllBreakdown') && (document.getElementById('countAllBreakdown').textContent = breakdown.length);
+        document.getElementById('countChanBreakdown') && (document.getElementById('countChanBreakdown').textContent = chanCount);
+        document.getElementById('countBotBreakdown') && (document.getElementById('countBotBreakdown').textContent = botCount);
+
+        renderFilteredBreakdownCards();
+      }
+
+      // Populate Conversion Funnel & Device Intelligence (Strictly for Channel Joins)
+      const funnelRateEl = document.getElementById('funnelConversionRate');
+      if (funnelRateEl) {
+        const rate = (stats.totalClicks && stats.totalClicks > 0)
+          ? `${Math.round(((stats.channelJoins || 0) / stats.totalClicks) * 100)}% Rate`
+          : (stats.channelJoins > 0 ? '100% Direct' : '0% Rate');
+        funnelRateEl.textContent = rate;
+      }
+
+      const funnelClicksEl = document.getElementById('funnelClicks');
+      if (funnelClicksEl) funnelClicksEl.textContent = stats.totalClicks || 0;
+
+      const funnelJoinsEl = document.getElementById('funnelJoins');
+      if (funnelJoinsEl) funnelJoinsEl.textContent = stats.channelJoins || 0;
+
+      const iosEl = document.getElementById('deviceIos');
+      if (iosEl) iosEl.textContent = stats.deviceStats?.iOS || 0;
+      const andEl = document.getElementById('deviceAndroid');
+      if (andEl) andEl.textContent = stats.deviceStats?.Android || 0;
+      const deskEl = document.getElementById('deviceDesktop');
+      if (deskEl) deskEl.textContent = stats.deviceStats?.Desktop || 0;
+
+      const activeEl = document.getElementById('retentionActive');
+      if (activeEl) activeEl.textContent = stats.retention?.activeMembers || 0;
+      const leftEl = document.getElementById('retentionLeft');
+      if (leftEl) leftEl.textContent = stats.retention?.leftMembers || 0;
     }
   } catch (err) {
     console.error('Error loading stats:', err);
   }
+}
+
+// ─── Multi-Channel Breakdown Filter Engine (Scalable for 40+ Channels) ────────
+window.currentBreakdownFilter = 'all';
+
+window.setBreakdownFilter = function(type) {
+  window.currentBreakdownFilter = type;
+  
+  const btnAll = document.getElementById('btnFilterBreakdownAll');
+  const btnChan = document.getElementById('btnFilterBreakdownChan');
+  const btnBot = document.getElementById('btnFilterBreakdownBot');
+
+  if (btnAll) {
+    btnAll.style.background = type === 'all' ? 'rgba(56,189,248,0.2)' : 'transparent';
+    btnAll.style.color = type === 'all' ? '#38bdf8' : 'rgba(255,255,255,0.6)';
+  }
+  if (btnChan) {
+    btnChan.style.background = type === 'channel' ? 'rgba(56,189,248,0.2)' : 'transparent';
+    btnChan.style.color = type === 'channel' ? '#38bdf8' : 'rgba(255,255,255,0.6)';
+  }
+  if (btnBot) {
+    btnBot.style.background = type === 'bot' ? 'rgba(168,85,247,0.2)' : 'transparent';
+    btnBot.style.color = type === 'bot' ? '#c084fc' : 'rgba(255,255,255,0.6)';
+  }
+
+  renderFilteredBreakdownCards();
+};
+
+window.filterBreakdownCards = function() {
+  renderFilteredBreakdownCards();
+};
+
+function renderFilteredBreakdownCards() {
+  const container = document.getElementById('channelStatsContainer');
+  if (!container) return;
+
+  const data = window.currentBreakdownData || [];
+  const query = (document.getElementById('searchBreakdown')?.value || '').toLowerCase().trim();
+  const filter = window.currentBreakdownFilter || 'all';
+
+  let filtered = data;
+  if (filter === 'channel') {
+    filtered = filtered.filter(i => i.destinationType === 'channel');
+  } else if (filter === 'bot') {
+    filtered = filtered.filter(i => i.destinationType === 'bot');
+  }
+
+  if (query) {
+    filtered = filtered.filter(i => 
+      (i.name && i.name.toLowerCase().includes(query)) ||
+      (i.tag && i.tag.toLowerCase().includes(query))
+    );
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="text-muted text-sm py-4 text-center" style="grid-column: 1/-1;">No accounts match the current filter.</div>`;
+    return;
+  }
+
+  let html = '';
+  for (const item of filtered) {
+    const isChan = item.destinationType === 'channel';
+    const typeBadge = isChan
+      ? `<span style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3); font-size:11px; padding:2px 7px; border-radius:4px; font-weight:700;">📢 Telegram Channel</span>`
+      : `<span style="background:rgba(168,85,247,0.15); color:#c084fc; border:1px solid rgba(168,85,247,0.3); font-size:11px; padding:2px 7px; border-radius:4px; font-weight:700;">💬 Bot Live Chat</span>`;
+
+    const metricUnit = isChan ? 'subscribers' : 'bot leads';
+
+    html += `
+      <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:0.9rem 1.1rem; display:flex; flex-direction:column; gap:0.45rem; transition:transform 0.2s, border-color 0.2s;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-weight:700; font-size:0.9rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:135px;" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+          <span class="tag-pill" style="font-size:0.65rem;">${escapeHtml(item.tag)}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:0.15rem;">
+          <div style="font-size:1.25rem; font-weight:800; color:${isChan ? '#38bdf8' : '#a78bfa'};">${item.totalJoins} <span style="font-size:0.75rem; font-weight:600; color:rgba(255,255,255,0.5);">${metricUnit}</span></div>
+          <div style="font-size:0.8rem; font-weight:700; color:#22c55e;">+${item.todayJoins} today</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.05); padding-top:0.4rem; margin-top:0.15rem;">
+          ${typeBadge}
+          <span style="color:#22c55e; font-size:0.75rem; font-weight:600;">✓ ${item.capiSuccess} Synced</span>
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
 }
 
 async function loadLeads() {
@@ -1101,6 +1257,11 @@ function renderLeadsTable(leads) {
       capiBadge = `<span class="badge badge-warning" title="${escapeHtml(lead.capiError || 'No Meta Pixel/Token configured')}">⚠️ Skipped</span>`;
     }
 
+    const isChannelJoin = lead.joinType === 'channel_join';
+    const typeBadge = isChannelJoin
+      ? `<span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:10px;padding:2px 6px;margin-top:4px;display:inline-block;">⚡ 1-Sec Auto-Approved</span>`
+      : `<span class="badge" style="background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3);font-size:10px;padding:2px 6px;margin-top:4px;display:inline-block;">💬 Direct Bot Chat</span>`;
+
     html += `
       <tr>
         <td>
@@ -1114,6 +1275,7 @@ function renderLeadsTable(leads) {
         </td>
         <td>
           <span class="channel-badge">${escapeHtml(lead.channelName || lead.channelTag)}</span>
+          <div>${typeBadge}</div>
         </td>
         <td>
           <code class="param-code">${escapeHtml(lead.rawParam || 'default')}</code>
@@ -1121,9 +1283,14 @@ function renderLeadsTable(leads) {
         <td>${capiBadge}</td>
         <td class="text-muted text-sm">${dateFormatted}</td>
         <td>
-          <a href="/chat" class="btn btn-outline btn-sm" onclick="sessionStorage.setItem('pendingChatConv', '${lead.userId}_${lead.channelTag || 'default'}')">
-            💬 Open Chat
-          </a>
+          ${lead.joinType === 'channel_join'
+            ? `<span style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.3rem 0.65rem;border-radius:8px;background:rgba(6,182,212,0.12);color:#38bdf8;border:1px solid rgba(6,182,212,0.25);font-size:0.75rem;font-weight:700;">
+                📢 Channel Member
+              </span>`
+            : `<a href="/chat" class="btn btn-outline btn-sm" onclick="sessionStorage.setItem('pendingChatConv', '${lead.userId}_${lead.channelTag || 'default'}')">
+                💬 Open Chat
+              </a>`
+          }
         </td>
       </tr>
     `;
@@ -1166,23 +1333,70 @@ async function loadChannels() {
   }
 }
 
+window.currentChannelsPageFilter = 'all';
+
+window.setChannelsPageFilter = function(type) {
+  window.currentChannelsPageFilter = type;
+  const btnAll = document.getElementById('btnFilterChanPageAll');
+  const btnChan = document.getElementById('btnFilterChanPageChan');
+  const btnBot = document.getElementById('btnFilterChanPageBot');
+
+  if (btnAll) {
+    btnAll.style.background = type === 'all' ? 'rgba(56,189,248,0.2)' : 'transparent';
+    btnAll.style.color = type === 'all' ? '#38bdf8' : 'rgba(255,255,255,0.6)';
+  }
+  if (btnChan) {
+    btnChan.style.background = type === 'channel' ? 'rgba(56,189,248,0.2)' : 'transparent';
+    btnChan.style.color = type === 'channel' ? '#38bdf8' : 'rgba(255,255,255,0.6)';
+  }
+  if (btnBot) {
+    btnBot.style.background = type === 'bot' ? 'rgba(168,85,247,0.2)' : 'transparent';
+    btnBot.style.color = type === 'bot' ? '#c084fc' : 'rgba(255,255,255,0.6)';
+  }
+
+  renderChannels(allChannels);
+};
+
+window.filterChannelsPageCards = function() {
+  renderChannels(allChannels);
+};
+
 function renderChannels(channels) {
   const container = document.getElementById('channelsListContainer');
   if (!container) return;
 
-  if (channels.length === 0) {
+  const query = (document.getElementById('searchChannelsPage')?.value || '').toLowerCase().trim();
+  const filter = window.currentChannelsPageFilter || 'all';
+
+  let filtered = channels;
+  if (filter === 'channel') {
+    filtered = filtered.filter(ch => ch.destinationType === 'channel' || (ch.link && (ch.link.includes('t.me/+') || ch.link.includes('t.me/joinchat'))));
+  } else if (filter === 'bot') {
+    filtered = filtered.filter(ch => ch.destinationType !== 'channel' && (!ch.link || (!ch.link.includes('t.me/+') && !ch.link.includes('t.me/joinchat'))));
+  }
+
+  if (query) {
+    filtered = filtered.filter(ch => 
+      (ch.name && ch.name.toLowerCase().includes(query)) ||
+      (ch.tag && ch.tag.toLowerCase().includes(query)) ||
+      (ch.botUsername && ch.botUsername.toLowerCase().includes(query))
+    );
+  }
+
+  if (filtered.length === 0) {
     container.innerHTML = `
-      <div class="empty-state py-8 text-center">
-        <p class="text-muted">No accounts added yet. Click "+ Add Account / Channel" above to add one!</p>
+      <div class="empty-state py-8 text-center" style="grid-column: 1/-1;">
+        <p class="text-muted">No accounts match the current filter.</p>
       </div>
     `;
     return;
   }
 
   let html = '';
-  for (const ch of channels) {
+  for (const ch of filtered) {
     const hasPixel = !!ch.pixelId;
     const hasBot = !!ch.botToken;
+    const isChannel = ch.destinationType === 'channel' || (ch.link && (ch.link.includes('t.me/+') || ch.link.includes('t.me/joinchat')));
 
     html += `
       <div class="channel-card">
@@ -1199,11 +1413,15 @@ function renderChannels(channels) {
 
         <div class="channel-card-body">
           <div class="info-row">
-            <span class="info-label">Direct Account:</span>
+            <span class="info-label">Account Type:</span>
+            <span class="info-value">${isChannel ? '📢 Telegram Channel (1-Sec Auto-Approve)' : '💬 Direct Bot Chat (2-Way Live Support)'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">${isChannel ? 'Channel Link:' : 'Personal/Support Link:'}</span>
             <a href="${escapeHtml(ch.link)}" target="_blank" class="info-value text-accent">${escapeHtml(ch.link)}</a>
           </div>
           <div class="info-row">
-            <span class="info-label">Custom Bot:</span>
+            <span class="info-label">${isChannel ? 'Approval Bot:' : 'Telegram Bot:'}</span>
             <span class="info-value">${ch.botUsername ? `🟢 @${escapeHtml(ch.botUsername)}` : (hasBot ? '🟢 Dedicated Bot Active' : '⚪ Master Bot (.env)')}</span>
           </div>
           <div class="info-row">
@@ -1211,22 +1429,31 @@ function renderChannels(channels) {
             <span class="info-value">${hasPixel ? `🟢 ${escapeHtml(ch.pixelId)}` : '⚪ Master Pixel (.env)'}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Welcome Msg:</span>
-            <span class="info-value text-truncate">${escapeHtml(ch.welcomeMessage || 'Default')}</span>
+            <span class="info-label">Subscribers / Leads:</span>
+            <span class="info-value" style="color:#38bdf8; font-weight:700;">👥 Live Tracking</span>
           </div>
           <div class="info-row">
             <span class="info-label">Client PIN:</span>
             <span class="info-value" style="color:#818cf8; font-weight:700;">🔑 ${escapeHtml(ch.accessPin || '1234')}</span>
           </div>
           
-          <!-- Client Chat Portal Link -->
+          <!-- Action Links Box -->
           <div class="channel-client-link-box" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); display: flex; gap: 0.5rem; justify-content: space-between; align-items: center;">
-            <button class="btn btn-outline btn-sm" onclick="copyClientChatLink('${escapeHtml(ch.tag)}', '${escapeHtml(ch.accessPin || '1234')}')" style="font-size: 0.8rem; flex: 1;" title="Copy private link for client">
-              🔗 Copy Client Chat Link
-            </button>
-            <a href="/client/${escapeHtml(ch.tag)}" target="_blank" class="btn btn-outline btn-sm" style="font-size: 0.8rem;" title="Preview isolated chat view">
-              👁️ Open View
-            </a>
+            ${isChannel ? `
+              <button class="btn btn-outline btn-sm" onclick="copyToClipboard('${escapeHtml(ch.link)}')" style="font-size: 0.8rem; flex: 1;" title="Copy Telegram Channel Invite Link">
+                🔗 Copy Channel Link
+              </button>
+              <a href="${escapeHtml(ch.link)}" target="_blank" class="btn btn-outline btn-sm" style="font-size: 0.8rem;" title="Open Channel in Telegram">
+                👁️ Open Telegram
+              </a>
+            ` : `
+              <button class="btn btn-outline btn-sm" onclick="copyClientChatLink('${escapeHtml(ch.tag)}', '${escapeHtml(ch.accessPin || '1234')}')" style="font-size: 0.8rem; flex: 1;" title="Copy private link for client">
+                🔗 Copy Client Chat Link
+              </button>
+              <a href="/client/${escapeHtml(ch.tag)}" target="_blank" class="btn btn-outline btn-sm" style="font-size: 0.8rem;" title="Preview isolated chat view">
+                👁️ Open Chat View
+              </a>
+            `}
           </div>
         </div>
       </div>
@@ -1285,40 +1512,58 @@ function renderAdLinks(channels) {
   let html = '';
   for (const ch of channels) {
     const targetBot = (ch.botUsername ? ch.botUsername.replace(/^@/, '').trim() : '') || botUsername;
+    const isChannel = ch.destinationType === 'channel' || (ch.link && (ch.link.includes('t.me/+') || ch.link.includes('t.me/joinchat')));
 
-    // ✅ NEW: Bridge URL — fires browser Pixel + captures fbclid for EXACT CPR
-    const bridgeUrl   = `${baseUrl}/go?c=${ch.tag}&fbclid={{fbclid}}`;
+    // Standard Bridge URL
+    const bridgeUrl = `${baseUrl}/go?c=${ch.tag}&fbclid={{fbclid}}`;
 
-    // Fallback: direct Telegram link (weaker attribution)
-    const standardUrl = `https://t.me/${targetBot}?start=${ch.tag}`;
+    // Advanced Dynamic URL with Ad ID + Creative Name
+    const dynamicAdUrl = `${baseUrl}/go?c=${ch.tag}&ad_id={{ad.id}}&ad_name={{ad.name}}&fbclid={{fbclid}}`;
+
+    // Direct Telegram link
+    const standardUrl = isChannel && ch.link ? ch.link : `https://t.me/${targetBot}?start=${ch.tag}`;
 
     html += `
       <div class="link-item-card">
         <div class="link-item-header">
           <h4>${escapeHtml(ch.name)} <span class="tag-pill">${escapeHtml(ch.tag)}</span></h4>
-          <span class="text-muted text-sm">Bot: <strong>@${escapeHtml(targetBot)}</strong> • Routes to: ${escapeHtml(ch.link)}</span>
+          <span class="text-muted text-sm">
+            ${isChannel ? '📢 <strong>Telegram Channel Auto-Approval</strong>' : '💬 <strong>Direct Bot Live Chat</strong>'} • Target: ${escapeHtml(ch.link || `@${targetBot}`)}
+          </span>
         </div>
 
-        <!-- PRIMARY: Bridge URL for Meta Ads (EXACT CPR) -->
+        <!-- PRIMARY: Bridge URL with Dynamic Ad Tracking (EXACT AD ID + CPR) -->
         <div class="link-input-group">
           <label style="display:flex;align-items:center;gap:0.4rem;">
-            <span style="background:#22c55e;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:99px;">✅ META ADS MEIN YAHI LAGAO</span>
-            Website URL — Pixel + fbclid Capture (Exact CPR):
+            <span style="background:linear-gradient(135deg,#8b5cf6,#06b6d4);color:#fff;font-size:0.65rem;font-weight:800;padding:3px 9px;border-radius:99px;box-shadow:0 0 10px rgba(139,92,246,0.4);">🔥 DYNAMIC AD TRACKING (EXACT AD ID & CREATIVE)</span>
+            Website URL — Auto-captures Ad ID, Reel/Banner Name & CPR:
           </label>
           <div class="copy-input-wrap">
-            <input type="text" readonly value="${bridgeUrl}" />
-            <button class="btn btn-primary btn-sm" onclick="copyToClipboard('${bridgeUrl}')">Copy URL</button>
+            <input type="text" readonly value="${dynamicAdUrl}" />
+            <button class="btn btn-primary btn-sm" onclick="copyToClipboard('${dynamicAdUrl}')">Copy URL</button>
           </div>
-          <p style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">
-            💡 Facebook Ads Manager → Ad → Website URL field mein yeh paste karo. Meta khud <code>{{fbclid}}</code> replace karega.
+          <p style="font-size:0.75rem;color:rgba(255,255,255,0.55);margin-top:0.35rem;">
+            💡 <b>Meta Ads Manager → Website URL</b> me paste karein. Meta automatically Reel/Banner ka naam aur ID hamare dashboard aur Meta CAPI ko bhejega!
           </p>
         </div>
 
-        <!-- SECONDARY: Direct Telegram (no pixel, backup only) -->
+        <!-- SECONDARY: Standard Bridge URL -->
         <div class="link-input-group mt-2">
           <label style="display:flex;align-items:center;gap:0.4rem;">
-            <span style="background:#6b7280;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:99px;">BACKUP</span>
-            Direct Telegram Link (Pixel fire nahi hoga):
+            <span style="background:#06b6d4;color:#000;font-size:0.65rem;font-weight:800;padding:2px 8px;border-radius:99px;">STANDARD</span>
+            Simple Ad Link (Tag + fbclid):
+          </label>
+          <div class="copy-input-wrap">
+            <input type="text" readonly value="${bridgeUrl}" />
+            <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('${bridgeUrl}')">Copy URL</button>
+          </div>
+        </div>
+
+        <!-- BACKUP: Direct Telegram -->
+        <div class="link-input-group mt-2">
+          <label style="display:flex;align-items:center;gap:0.4rem;">
+            <span style="background:#475569;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:99px;">BACKUP</span>
+            Direct Telegram Link:
           </label>
           <div class="copy-input-wrap">
             <input type="text" readonly value="${standardUrl}" />
@@ -1339,23 +1584,30 @@ window.openChannelModal = function(channel = null) {
   if (!modal) return;
 
   if (channel) {
-    if (title) title.textContent = `Edit Account: ${channel.name}`;
+    if (title) title.textContent = `Edit Account / Channel: ${channel.name}`;
     document.getElementById('inputTag').value = channel.tag || '';
     document.getElementById('inputTag').disabled = true;
     document.getElementById('inputName').value = channel.name || '';
+    if (document.getElementById('inputDestinationType')) {
+      const isChan = channel.destinationType === 'channel' || (channel.link && (channel.link.includes('t.me/+') || channel.link.includes('t.me/joinchat')));
+      document.getElementById('inputDestinationType').value = isChan ? 'channel' : 'bot';
+    }
     if (document.getElementById('inputBotUsername')) {
       document.getElementById('inputBotUsername').value = channel.botUsername || channel.name || '';
     }
-    document.getElementById('inputLink').value = (channel.link || '').replace(/^https?:\/\/t\.me\//, '').replace(/^@/, '');
+    document.getElementById('inputLink').value = channel.link || '';
     document.getElementById('inputBotToken').value = channel.botToken || '';
     if (document.getElementById('inputPixelId')) document.getElementById('inputPixelId').value = channel.pixelId || '';
     if (document.getElementById('inputAccessToken')) document.getElementById('inputAccessToken').value = channel.accessToken || '';
     if (document.getElementById('inputAccessPin')) document.getElementById('inputAccessPin').value = channel.accessPin || '1234';
   } else {
-    if (title) title.textContent = 'Add Telegram Account / Agent';
+    if (title) title.textContent = 'Add Telegram Channel / Bot Account';
     document.getElementById('inputTag').value = '';
     document.getElementById('inputTag').disabled = false;
     document.getElementById('inputName').value = '';
+    if (document.getElementById('inputDestinationType')) {
+      document.getElementById('inputDestinationType').value = 'bot';
+    }
     if (document.getElementById('inputBotUsername')) {
       document.getElementById('inputBotUsername').value = '';
     }
@@ -1375,7 +1627,7 @@ window.editChannel = function(tag) {
 };
 
 window.deleteChannel = async function(tag) {
-  if (!confirm(`Are you sure you want to delete account "${tag}"?`)) return;
+  if (!confirm(`Are you sure you want to delete "${tag}"?`)) return;
 
   try {
     const res = await fetch(`/api/channels/${encodeURIComponent(tag)}`, { method: 'DELETE' });
@@ -1386,7 +1638,7 @@ window.deleteChannel = async function(tag) {
       alert('Failed to delete: ' + (json.error || 'Unknown error'));
     }
   } catch (err) {
-    alert('Error deleting account: ' + err.message);
+    alert('Error deleting: ' + err.message);
   }
 };
 
@@ -1395,17 +1647,19 @@ async function handleSaveChannel(e) {
 
   const tag = document.getElementById('inputTag')?.value.trim();
   const name = document.getElementById('inputName')?.value.trim();
+  const destType = document.getElementById('inputDestinationType')?.value || 'bot';
   const botUser = document.getElementById('inputBotUsername')?.value.replace(/^@/, '').trim();
   const link = document.getElementById('inputLink')?.value.trim();
 
   if (!tag || !link) {
-    alert('Please fill in both Campaign Tag and Telegram Username.');
+    alert('Please fill in both Campaign Tag and Target Link / Username.');
     return;
   }
 
   const payload = {
     tag: tag,
     name: name || tag,
+    destinationType: destType,
     botUsername: botUser || '',
     link: link,
     botToken: document.getElementById('inputBotToken')?.value.trim() || '',

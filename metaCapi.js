@@ -31,7 +31,8 @@ async function sendMetaCapiLead({
   username,
   customPixelId,
   customAccessToken,
-  channelName
+  channelName,
+  eventName = 'Lead'
 }) {
   const pixelId = (customPixelId && customPixelId.trim()) || process.env.META_PIXEL_ID || '';
   const accessToken = (customAccessToken && customAccessToken.trim()) || process.env.META_ACCESS_TOKEN || '';
@@ -70,11 +71,11 @@ async function sendMetaCapiLead({
     if (fbclidMatch) {
       extractedFbclid = fbclidMatch[1];
     }
-    // Format 2: direct fbclid_ prefix
-    else if (param.startsWith('fbclid_') || param.startsWith('fb_')) {
-      extractedFbclid = param.replace(/^fbclid_|^fb_/, '');
+    // Format 2: direct numeric ad id (e.g. 1202158934)
+    else if (/^\d{8,}$/.test(param)) {
+      extractedAdId = param;
     }
-    // Format 3: tag_ADID (numeric) from {{ad.id}}
+    // Format 3: tag_ADID (e.g. ad1_1202158934)
     else if (param.includes('_')) {
       const parts = param.split('_');
       const suffix = parts.slice(1).join('_');
@@ -95,9 +96,11 @@ async function sendMetaCapiLead({
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const eventId = `lead_${userId || 'user'}_${now}`;
+  const eventId = `${eventName.toLowerCase()}_${userId || 'user'}_${now}`;
   const botUser = process.env.TELEGRAM_BOT_USERNAME || 'southboookbot';
   const sourceUrl = `https://t.me/${botUser}?start=${encodeURIComponent(param || 'ad1')}`;
+
+  const isSubscribe = eventName === 'Subscribe';
 
   const pageViewEvent = {
     event_name: 'PageView',
@@ -113,8 +116,8 @@ async function sendMetaCapiLead({
     }
   };
 
-  const leadEvent = {
-    event_name: 'Lead',
+  const conversionEvent = {
+    event_name: isSubscribe ? 'Subscribe' : 'Lead',
     event_time: now,
     event_id: eventId,
     action_source: 'chat',
@@ -123,9 +126,9 @@ async function sendMetaCapiLead({
     custom_data: {
       currency: 'INR',
       value: 1.00,
-      content_name: channelName || 'Telegram Ad Lead',
-      content_category: 'Lead',
-      lead_source: 'Telegram Multi-Channel Bot',
+      content_name: channelName || (isSubscribe ? 'Telegram Channel Subscriber' : 'Telegram Bot Lead'),
+      content_category: isSubscribe ? 'Subscribe' : 'Lead',
+      lead_source: isSubscribe ? 'Telegram Auto-Approval Channel' : 'Telegram Multi-Channel Bot',
       channel_name: channelName || 'Default',
       telegram_username: username ? `@${username}` : undefined,
       start_param: param || 'none',
@@ -134,7 +137,7 @@ async function sendMetaCapiLead({
   };
 
   const payload = {
-    data: [pageViewEvent, leadEvent],
+    data: [pageViewEvent, conversionEvent],
     access_token: accessToken
   };
 

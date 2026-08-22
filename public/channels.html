@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="/style.css?v=4.0">
 </head>
 <body>
 
@@ -116,14 +116,25 @@
       <main class="dashboard-container">
     
     <div class="card">
-      <div class="card-header flex-between">
+      <div class="card-header flex-between" style="flex-wrap: wrap; gap: 0.75rem; padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.06);">
         <div>
-          <h2 class="card-title">Telegram Accounts & Multi-Bot Channels</h2>
-          <p class="card-desc">Configure your personal Telegram usernames, custom welcome messages, and per-account Meta Pixels.</p>
+          <h2 class="card-title">Telegram Accounts & Multi-Channel Network</h2>
+          <p class="card-desc">Manage 40+ personal bot accounts & Telegram auto-approval channels.</p>
+        </div>
+        
+        <!-- Scalable Management Filters -->
+        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+          <div class="filter-pills-group" style="display:flex; background:rgba(255,255,255,0.04); padding:3px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); gap:2px;">
+            <button class="pill-btn active" id="btnFilterChanPageAll" onclick="setChannelsPageFilter('all')" style="border:none; background:rgba(56,189,248,0.2); color:#38bdf8; font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer;">All</button>
+            <button class="pill-btn" id="btnFilterChanPageChan" onclick="setChannelsPageFilter('channel')" style="border:none; background:transparent; color:rgba(255,255,255,0.6); font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer;">📢 Channels</button>
+            <button class="pill-btn" id="btnFilterChanPageBot" onclick="setChannelsPageFilter('bot')" style="border:none; background:transparent; color:rgba(255,255,255,0.6); font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer;">💬 Bot Chat</button>
+          </div>
+          <input type="text" id="searchChannelsPage" placeholder="🔍 Search accounts..." oninput="filterChannelsPageCards()" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.35rem 0.75rem; font-size:0.8rem; color:#fff; width:160px; outline:none;">
+          <button class="btn btn-primary btn-sm" onclick="openAddChannelModal()" style="font-size:0.8rem; padding:0.4rem 0.85rem;">+ Add New</button>
         </div>
       </div>
 
-      <div class="channels-grid" id="channelsListContainer">
+      <div class="channels-grid" id="channelsListContainer" style="padding: 1.25rem;">
         <!-- Populated by JS -->
       </div>
     </div>
@@ -140,30 +151,39 @@
       <form id="channelForm">
         <div class="form-group">
           <label>Campaign Tag / Code (Unique Identifier) *</label>
-          <input type="text" id="inputTag" required placeholder="e.g. ad1, insta_ad, vip, agent2" />
-          <small class="form-hint">This tag will be used in your ad URL: <code>https://t.me/YourBot?start=TAG</code></small>
+          <input type="text" id="inputTag" required placeholder="e.g. ad1, insta_ad, vip, cric1" />
+          <small class="form-hint">This tag will be used in ad tracking: <code>/go?c=TAG&fbclid={{fbclid}}</code></small>
         </div>
 
         <div class="form-group">
-          <label>Account / Agent Display Name *</label>
-          <input type="text" id="inputName" required placeholder="e.g. Manish Nagda (Main Account) or Agent Rahul" />
+          <label>Account / Channel Display Name *</label>
+          <input type="text" id="inputName" required placeholder="e.g. Southboookbot or Cricket VIP Channel #1" />
+        </div>
+
+        <div class="form-group">
+          <label>Account Type *</label>
+          <select id="inputDestinationType" class="select-dropdown" style="width:100%; padding:0.6rem; border-radius:8px; background:rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.15);">
+            <option value="bot">💬 Direct Bot Chat (2-Way Live Support)</option>
+            <option value="channel">📢 Telegram Channel (1-Sec Auto-Approval)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Target URL / Channel Invite Link / Support Username *</label>
+          <input type="text" id="inputLink" required placeholder="e.g. https://t.me/sparkspires or https://t.me/+joinchat..." />
+          <small class="form-hint">For Channels: paste Invite Link with "Request Admin Approval" ON. For Bots: paste Support link / username.</small>
         </div>
 
         <div class="form-group">
           <label>Telegram Bot Username (without @) *</label>
-          <input type="text" id="inputBotUsername" placeholder="e.g. sparkspires or Southboookbot (without @)" />
-          <small class="form-hint">This bot will be used in Meta Ad links: <code>https://t.me/YourBotUsername?start=TAG</code></small>
-        </div>
-
-        <div class="form-group">
-          <label>Personal Telegram Admin Username (without @) *</label>
-          <input type="text" id="inputLink" required placeholder="e.g. manish_nagda" />
+          <input type="text" id="inputBotUsername" placeholder="e.g. southboookbot or manish_lead_bot" />
+          <small class="form-hint">The Bot used for chat or added as Channel Admin for 1-sec auto-approvals.</small>
         </div>
 
         <div class="form-group">
           <label>Custom Telegram Bot Token (Optional)</label>
-          <input type="text" id="inputBotToken" placeholder="Leave blank to use Master Bot, or add specific Bot token" />
-          <small class="form-hint">If you want a dedicated bot for this account, paste its token here.</small>
+          <input type="text" id="inputBotToken" placeholder="Leave blank to use Master Bot Token from .env" />
+          <small class="form-hint">If you want a dedicated bot for this account/channel, paste its token here.</small>
         </div>
 
         <div class="form-group">

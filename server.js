@@ -98,10 +98,39 @@ app.get('/go', (req, res) => {
 </html>`);
   }
 
+  // Platform & Placement Intelligence
+  const rawPlatform = (req.query.platform || req.query.site_source_name || req.query.utm_source || req.headers['referer'] || '').toLowerCase();
+  const platform = (rawPlatform.includes('insta') || rawPlatform.includes('ig')) ? 'Instagram' : 'Facebook';
+
+  const rawPlacement = (req.query.placement || req.query.utm_placement || req.query.ad_position || '').toLowerCase();
+  let placement = 'Feed';
+  if (rawPlacement.includes('reel')) placement = 'Reels';
+  else if (rawPlacement.includes('stor')) placement = 'Stories';
+  else if (rawPlacement.includes('expl')) placement = 'Explore';
+
+  // Geolocation Intelligence (State & City)
+  const geo = db.resolveGeo(ip);
+  const city = geo.city || '';
+  const state = geo.state || 'Maharashtra';
+  const country = geo.country || 'India';
+
   // Log click & device ONLY when genuine Meta parameters are present (Ignores blank/direct visits)
-  const isMetaParamPresent = !!(fbclid || adId || adName || campaignName || req.query.utm_source);
+  const isMetaParamPresent = !!(fbclid || adId || adName || campaignName || req.query.utm_source || req.query.platform);
   if (isMetaParamPresent) {
-    db.logClick({ channelTag, adName, adId, campaignName, fbclid, device, ip }).catch(() => {});
+    db.logClick({
+      channelTag,
+      adName,
+      adId,
+      campaignName,
+      fbclid,
+      device,
+      ip,
+      platform,
+      placement,
+      city,
+      state,
+      country
+    }).catch(() => {});
   }
 
   // Determine destination URL: Channel Join Link OR Bot DM Start Link

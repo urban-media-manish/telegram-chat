@@ -1195,6 +1195,56 @@ async function loadStats() {
       if (fraudStatusEl) {
         fraudStatusEl.textContent = '🟢 Active (100% Protected)';
       }
+
+      // Platform Split (Facebook vs Instagram)
+      const pStats = stats.platformStats || { facebook: { clicks: 0, joins: 0, conversionRate: 0 }, instagram: { clicks: 0, joins: 0, conversionRate: 0 } };
+      const fbClicksEl = document.getElementById('fbClicksCount');
+      if (fbClicksEl) fbClicksEl.textContent = pStats.facebook?.clicks || 0;
+      const fbJoinsEl = document.getElementById('fbJoinsCount');
+      if (fbJoinsEl) fbJoinsEl.textContent = pStats.facebook?.joins || 0;
+      const fbCREl = document.getElementById('fbConversionRate');
+      if (fbCREl) fbCREl.textContent = `${pStats.facebook?.conversionRate || 0}% CR`;
+
+      const igClicksEl = document.getElementById('igClicksCount');
+      if (igClicksEl) igClicksEl.textContent = pStats.instagram?.clicks || 0;
+      const igJoinsEl = document.getElementById('igJoinsCount');
+      if (igJoinsEl) igJoinsEl.textContent = pStats.instagram?.joins || 0;
+      const igCREl = document.getElementById('igConversionRate');
+      if (igCREl) igCREl.textContent = `${pStats.instagram?.conversionRate || 0}% CR`;
+
+      // Placement Types (Reels vs Stories vs Feeds)
+      const plStats = stats.placementStats || { reels: { clicks: 0, joins: 0 }, stories: { clicks: 0, joins: 0 }, feed: { clicks: 0, joins: 0 } };
+      const plReelsEl = document.getElementById('placementReels');
+      if (plReelsEl) plReelsEl.textContent = `${(plStats.reels?.clicks || 0) + (plStats.reels?.joins || 0)}`;
+      const plStoriesEl = document.getElementById('placementStories');
+      if (plStoriesEl) plStoriesEl.textContent = `${(plStats.stories?.clicks || 0) + (plStats.stories?.joins || 0)}`;
+      const plFeedEl = document.getElementById('placementFeed');
+      if (plFeedEl) plFeedEl.textContent = `${(plStats.feed?.clicks || 0) + (plStats.feed?.joins || 0)}`;
+
+      // State & Geographic Intelligence
+      const statesCont = document.getElementById('topStatesContainer');
+      if (statesCont) {
+        const topStates = stats.geoStats?.topStates || [];
+        if (topStates.length === 0) {
+          statesCont.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: rgba(255,255,255,0.03); padding: 0.4rem 0.75rem; border-radius: 6px;">
+              <span style="color: #fff; font-weight: 600;">🇮🇳 Maharashtra & Gujarat</span>
+              <strong style="color: #38bdf8;">Top Regions</strong>
+            </div>
+          `;
+        } else {
+          let sHtml = '';
+          for (const item of topStates) {
+            sHtml += `
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: rgba(255,255,255,0.03); padding: 0.35rem 0.65rem; border-radius: 6px;">
+                <span style="color: #fff; font-weight: 600;">📍 ${escapeHtml(item.state)}</span>
+                <strong style="color: #38bdf8;">${item.count} Leads</strong>
+              </div>
+            `;
+          }
+          statesCont.innerHTML = sHtml;
+        }
+      }
     }
   } catch (err) {
     console.error('Error loading stats:', err);
@@ -1599,8 +1649,8 @@ function renderAdLinks(channels) {
     // Standard Bridge URL
     const bridgeUrl = `${baseUrl}/go?c=${ch.tag}&fbclid={{fbclid}}`;
 
-    // Advanced Dynamic URL with Ad ID + Creative Name
-    const dynamicAdUrl = `${baseUrl}/go?c=${ch.tag}&ad_id={{ad.id}}&ad_name={{ad.name}}&fbclid={{fbclid}}`;
+    // Advanced Dynamic URL with Ad ID + Creative Name + Platform + Placement
+    const dynamicAdUrl = `${baseUrl}/go?c=${ch.tag}&ad_id={{ad.id}}&ad_name={{ad.name}}&platform={{site_source_name}}&placement={{placement}}&fbclid={{fbclid}}`;
 
     // Direct Telegram link
     const standardUrl = isChannel && ch.link ? ch.link : `https://t.me/${targetBot}?start=${ch.tag}`;

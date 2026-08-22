@@ -279,6 +279,85 @@
             </div>
           </div>
 
+          <!-- Card 3: Platform Split & Placement Breakdown -->
+          <div class="card" style="background: rgba(18, 22, 34, 0.75); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 1.25rem 1.4rem; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); backdrop-filter: blur(20px);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.75rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.1rem;">📱</span>
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin: 0;">FB vs Insta Placement Split</h3>
+              </div>
+              <span class="tag-pill" style="font-size: 10px;">Attribution Engine</span>
+            </div>
+
+            <!-- FB vs IG Split Rows -->
+            <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.9rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.2); border-radius: 10px; padding: 0.55rem 0.9rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 1.1rem;">📘</span>
+                  <span style="font-size: 0.85rem; font-weight: 700; color: #fff;">Facebook</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.8rem; font-size: 0.82rem;">
+                  <span><strong id="fbClicksCount" style="color: #38bdf8;">0</strong> Clicks</span>
+                  <span style="color: rgba(255,255,255,0.3);">➔</span>
+                  <span><strong id="fbJoinsCount" style="color: #10b981;">0</strong> Joins</span>
+                  <span class="badge badge-success" id="fbConversionRate" style="font-size: 9px; padding: 1px 5px;">0% CR</span>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(244,63,94,0.06); border: 1px solid rgba(244,63,94,0.2); border-radius: 10px; padding: 0.55rem 0.9rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 1.1rem;">📸</span>
+                  <span style="font-size: 0.85rem; font-weight: 700; color: #fff;">Instagram</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.8rem; font-size: 0.82rem;">
+                  <span><strong id="igClicksCount" style="color: #f43f5e;">0</strong> Clicks</span>
+                  <span style="color: rgba(255,255,255,0.3);">➔</span>
+                  <span><strong id="igJoinsCount" style="color: #10b981;">0</strong> Joins</span>
+                  <span class="badge badge-success" id="igConversionRate" style="font-size: 9px; padding: 1px 5px;">0% CR</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Placement Breakdown Pills (Reels vs Stories vs Feed) -->
+            <div>
+              <div style="font-size: 0.72rem; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 0.35rem;">🎬 Placement Types</div>
+              <div style="display: flex; gap: 0.4rem; font-size: 0.75rem;">
+                <div style="flex: 1; background: rgba(255,255,255,0.04); border-radius: 6px; padding: 0.35rem 0.5rem; text-align: center;">
+                  <span style="color: rgba(255,255,255,0.5);">Reels:</span> <strong id="placementReels" style="color: #c084fc;">0</strong>
+                </div>
+                <div style="flex: 1; background: rgba(255,255,255,0.04); border-radius: 6px; padding: 0.35rem 0.5rem; text-align: center;">
+                  <span style="color: rgba(255,255,255,0.5);">Stories:</span> <strong id="placementStories" style="color: #f43f5e;">0</strong>
+                </div>
+                <div style="flex: 1; background: rgba(255,255,255,0.04); border-radius: 6px; padding: 0.35rem 0.5rem; text-align: center;">
+                  <span style="color: rgba(255,255,255,0.5);">Feeds:</span> <strong id="placementFeed" style="color: #38bdf8;">0</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4: State & City Geographic Intelligence -->
+          <div class="card" style="background: rgba(18, 22, 34, 0.75); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 1.25rem 1.4rem; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); backdrop-filter: blur(20px);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.75rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.1rem;">📍</span>
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin: 0;">State & City Intelligence</h3>
+              </div>
+              <span class="tag-pill" style="font-size: 10px;">🇮🇳 India Live Geo</span>
+            </div>
+
+            <!-- Top States Container -->
+            <div id="topStatesContainer" style="display: flex; flex-direction: column; gap: 0.45rem; max-height: 145px; overflow-y: auto;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: rgba(255,255,255,0.03); padding: 0.35rem 0.65rem; border-radius: 6px;">
+                <span style="color: #fff; font-weight: 600;">🇮🇳 Maharashtra</span>
+                <strong style="color: #38bdf8;">0 Leads</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: rgba(255,255,255,0.03); padding: 0.35rem 0.65rem; border-radius: 6px;">
+                <span style="color: #fff; font-weight: 600;">🇮🇳 Delhi NCR</span>
+                <strong style="color: #38bdf8;">0 Leads</strong>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- 📢 Multi-Channel & Campaign Accounts Hub -->

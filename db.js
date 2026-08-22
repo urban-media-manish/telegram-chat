@@ -1,6 +1,32 @@
 const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
+const geoip = require('geoip-lite');
+
+const STATE_NAMES = {
+  'MH': 'Maharashtra', 'DL': 'Delhi', 'UP': 'Uttar Pradesh', 'GJ': 'Gujarat',
+  'RJ': 'Rajasthan', 'KA': 'Karnataka', 'TN': 'Tamil Nadu', 'WB': 'West Bengal',
+  'PB': 'Punjab', 'HR': 'Haryana', 'MP': 'Madhya Pradesh', 'BR': 'Bihar',
+  'TG': 'Telangana', 'AP': 'Andhra Pradesh', 'KL': 'Kerala', 'OR': 'Odisha',
+  'JH': 'Jharkhand', 'AS': 'Assam', 'UT': 'Uttarakhand', 'HP': 'Himachal Pradesh',
+  'GA': 'Goa', 'CH': 'Chandigarh', 'JK': 'Jammu & Kashmir'
+};
+
+function resolveGeo(ip) {
+  if (!ip || ip === '127.0.0.1' || ip === '::1') {
+    return { country: 'India', state: 'Maharashtra', city: 'Mumbai' };
+  }
+  try {
+    const geo = geoip.lookup(ip);
+    if (!geo) return { country: 'India', state: 'Maharashtra', city: 'Mumbai' };
+    const state = STATE_NAMES[geo.region] || geo.region || 'Maharashtra';
+    const city = geo.city || 'Mumbai';
+    const country = geo.country === 'IN' ? 'India' : (geo.country || 'India');
+    return { country, state, city };
+  } catch (e) {
+    return { country: 'India', state: 'India', city: '' };
+  }
+}
 
 // ─── MongoDB Connection ───────────────────────────────────────────────────────
 let isConnected = false;
@@ -74,6 +100,11 @@ const LeadSchema = new mongoose.Schema({
   capiStatus: { type: String, default: 'pending' },
   capiTraceId: { type: String, default: '' },
   capiError: { type: String, default: null },
+  platform: { type: String, default: 'Facebook' },
+  placement: { type: String, default: 'Feed' },
+  city: { type: String, default: '' },
+  state: { type: String, default: '' },
+  country: { type: String, default: 'India' },
   lastActiveAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now }
 });
@@ -128,6 +159,11 @@ const ClickLogSchema = new mongoose.Schema({
   campaignName: { type: String, default: '' },
   fbclid: { type: String, default: '' },
   device: { type: String, default: 'mobile' },
+  platform: { type: String, default: 'Facebook' },
+  placement: { type: String, default: 'Feed' },
+  city: { type: String, default: '' },
+  state: { type: String, default: '' },
+  country: { type: String, default: 'India' },
   ip: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
@@ -808,6 +844,17 @@ const db = {
     const channelCapiSuccess = {};
     const hourlyJoins = new Array(24).fill(0);
     const deviceStats = { iOS: 0, Android: 0, Desktop: 0 };
+    const platformStats = {
+      facebook: { clicks: 0, joins: 0, conversionRate: 0 },
+      instagram: { clicks: 0, joins: 0, conversionRate: 0 }
+    };
+    const placementStats = {
+      reels: { clicks: 0, joins: 0 },
+      stories: { clicks: 0, joins: 0 },
+      feed: { clicks: 0, joins: 0 }
+    };
+    const stateCounts = {};
+    const cityCounts = {};
 
     const filteredLeads = leads.filter(l => {
       const t = new Date(l.createdAt || 0).getTime();
@@ -835,6 +882,21 @@ const db = {
       channelCounts[ch] = (channelCounts[ch] || 0) + 1;
       if (isToday) channelTodayCounts[ch] = (channelTodayCounts[ch] || 0) + 1;
       if (lead.capiStatus === 'success') channelCapiSuccess[ch] = (channelCapiSuccess[ch] || 0) + 1;
+
+      // Platform & Placement Joins
+      const p = (lead.platform || 'Facebook').toLowerCase();
+      if (p.includes('insta') || p === 'ig') platformStats.instagram.joins++;
+      else platformStats.facebook.joins++;
+
+      const pl = (lead.placement || 'Feed').toLowerCase();
+      if (pl.includes('reel')) placementStats.reels.joins++;
+      else if (pl.includes('stor')) placementStats.stories.joins++;
+      else placementStats.feed.joins++;
+
+      // Geo state & city
+      const st = lead.state || 'Maharashtra';
+      stateCounts[st] = (stateCounts[st] || 0) + 1;
+      if (lead.city) cityCounts[lead.city] = (cityCounts[lead.city] || 0) + 1;
     }
 
     const channelTagsSet = new Set(channels.filter(c => c.destinationType === 'channel').map(c => c.tag.toLowerCase()));
@@ -868,6 +930,19 @@ const db = {
         else if (dev === 'Desktop') botDeviceStats.Desktop++;
         else botDeviceStats.Android++;
       }
+
+      // Platform & Placement Clicks
+      const p = (clk.platform || 'Facebook').toLowerCase();
+      if (p.includes('insta') || p === 'ig') platformStats.instagram.clicks++;
+      else platformStats.facebook.clicks++;
+
+      const pl = (clk.placement || 'Feed').toLowerCase();
+      if (pl.includes('reel')) placementStats.reels.clicks++;
+      else if (pl.includes('stor')) placementStats.stories.clicks++;
+      else placementStats.feed.clicks++;
+
+      if (clk.state) stateCounts[clk.state] = (stateCounts[clk.state] || 0) + 1;
+      if (clk.city) cityCounts[clk.city] = (cityCounts[clk.city] || 0) + 1;
     }
 
     const uniqueConvKeys = new Set();
@@ -882,6 +957,21 @@ const db = {
     const conversionRate = channelClicks > 0 ? Math.round((channelJoins / channelClicks) * 100) : 0;
     const botLeads = filteredLeads.filter(l => l.joinType !== 'channel_join').length;
     const botConversionRate = botClicks > 0 ? Math.round((botLeads / botClicks) * 100) : 0;
+
+    platformStats.facebook.conversionRate = platformStats.facebook.clicks > 0
+      ? Math.round((platformStats.facebook.joins / platformStats.facebook.clicks) * 100) : 0;
+    platformStats.instagram.conversionRate = platformStats.instagram.clicks > 0
+      ? Math.round((platformStats.instagram.joins / platformStats.instagram.clicks) * 100) : 0;
+
+    const topStates = Object.entries(stateCounts)
+      .map(([state, count]) => ({ state, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+
+    const topCities = Object.entries(cityCounts)
+      .map(([city, count]) => ({ city, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
 
     const channelBreakdown = channels.map(c => ({
       tag: c.tag,
@@ -915,6 +1005,9 @@ const db = {
       botConversionRate,
       hourlyJoins,
       deviceStats,
+      platformStats,
+      placementStats,
+      geoStats: { topStates, topCities },
       fraudBlockedCount: readJsonFile(FRAUD_FILE, []).length,
       fraudShieldStatus: 'Active',
       retention: { activeMembers, leftMembers },
@@ -953,6 +1046,17 @@ const db = {
         const channelDeviceStats = { iOS: 0, Android: 0, Desktop: 0 };
         const botDeviceStats = { iOS: 0, Android: 0, Desktop: 0 };
         const deviceStats = { iOS: 0, Android: 0, Desktop: 0 };
+        const platformStats = {
+          facebook: { clicks: 0, joins: 0, conversionRate: 0 },
+          instagram: { clicks: 0, joins: 0, conversionRate: 0 }
+        };
+        const placementStats = {
+          reels: { clicks: 0, joins: 0 },
+          stories: { clicks: 0, joins: 0 },
+          feed: { clicks: 0, joins: 0 }
+        };
+        const stateCounts = {};
+        const cityCounts = {};
 
         for (const lead of leads) {
           const date = new Date(lead.createdAt);
@@ -975,6 +1079,20 @@ const db = {
           channelCounts[ch] = (channelCounts[ch] || 0) + 1;
           if (isToday) channelTodayCounts[ch] = (channelTodayCounts[ch] || 0) + 1;
           if (lead.capiStatus === 'success') channelCapiSuccess[ch] = (channelCapiSuccess[ch] || 0) + 1;
+
+          // Platform & Placement Joins
+          const p = (lead.platform || 'Facebook').toLowerCase();
+          if (p.includes('insta') || p === 'ig') platformStats.instagram.joins++;
+          else platformStats.facebook.joins++;
+
+          const pl = (lead.placement || 'Feed').toLowerCase();
+          if (pl.includes('reel')) placementStats.reels.joins++;
+          else if (pl.includes('stor')) placementStats.stories.joins++;
+          else placementStats.feed.joins++;
+
+          const st = lead.state || 'Maharashtra';
+          stateCounts[st] = (stateCounts[st] || 0) + 1;
+          if (lead.city) cityCounts[lead.city] = (cityCounts[lead.city] || 0) + 1;
         }
 
         for (const clk of clicks) {
@@ -997,6 +1115,19 @@ const db = {
             else if (dev === 'Desktop') botDeviceStats.Desktop++;
             else botDeviceStats.Android++;
           }
+
+          // Platform & Placement Clicks
+          const p = (clk.platform || 'Facebook').toLowerCase();
+          if (p.includes('insta') || p === 'ig') platformStats.instagram.clicks++;
+          else platformStats.facebook.clicks++;
+
+          const pl = (clk.placement || 'Feed').toLowerCase();
+          if (pl.includes('reel')) placementStats.reels.clicks++;
+          else if (pl.includes('stor')) placementStats.stories.clicks++;
+          else placementStats.feed.clicks++;
+
+          if (clk.state) stateCounts[clk.state] = (stateCounts[clk.state] || 0) + 1;
+          if (clk.city) cityCounts[clk.city] = (cityCounts[clk.city] || 0) + 1;
         }
 
         const convs = await this.getConversations();
@@ -1006,6 +1137,21 @@ const db = {
         const conversionRate = channelClicks > 0 ? Math.round((channelJoins / channelClicks) * 100) : 0;
         const botLeads = leads.filter(l => l.joinType !== 'channel_join').length;
         const botConversionRate = botClicks > 0 ? Math.round((botLeads / botClicks) * 100) : 0;
+
+        platformStats.facebook.conversionRate = platformStats.facebook.clicks > 0
+          ? Math.round((platformStats.facebook.joins / platformStats.facebook.clicks) * 100) : 0;
+        platformStats.instagram.conversionRate = platformStats.instagram.clicks > 0
+          ? Math.round((platformStats.instagram.joins / platformStats.instagram.clicks) * 100) : 0;
+
+        const topStates = Object.entries(stateCounts)
+          .map(([state, count]) => ({ state, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8);
+
+        const topCities = Object.entries(cityCounts)
+          .map(([city, count]) => ({ city, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8);
 
         const channelBreakdown = channels.map(c => ({
           tag: c.tag,
@@ -1041,6 +1187,9 @@ const db = {
           botConversionRate,
           hourlyJoins,
           deviceStats,
+          platformStats,
+          placementStats,
+          geoStats: { topStates, topCities },
           fraudBlockedCount,
           fraudShieldStatus: 'Active',
           retention: { activeMembers, leftMembers },
@@ -1074,6 +1223,10 @@ const db = {
     if (modified) writeJsonFile(LEADS_FILE, leads);
   },
 
+  resolveGeo(ip) {
+    return resolveGeo(ip);
+  },
+
   async logClick(clickData) {
     try {
       if (await connectDB()) {
@@ -1084,6 +1237,11 @@ const db = {
           campaignName: clickData.campaignName || '',
           fbclid: clickData.fbclid || '',
           device: clickData.device || 'mobile',
+          platform: clickData.platform || 'Facebook',
+          placement: clickData.placement || 'Feed',
+          city: clickData.city || '',
+          state: clickData.state || 'Maharashtra',
+          country: clickData.country || 'India',
           ip: clickData.ip || ''
         });
         await click.save();
@@ -1100,6 +1258,11 @@ const db = {
       campaignName: clickData.campaignName || '',
       fbclid: clickData.fbclid || '',
       device: clickData.device || 'mobile',
+      platform: clickData.platform || 'Facebook',
+      placement: clickData.placement || 'Feed',
+      city: clickData.city || '',
+      state: clickData.state || 'Maharashtra',
+      country: clickData.country || 'India',
       ip: clickData.ip || '',
       createdAt: new Date().toISOString()
     });

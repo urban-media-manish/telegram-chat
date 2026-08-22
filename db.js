@@ -893,28 +893,35 @@ const db = {
       if (isToday) channelTodayCounts[ch] = (channelTodayCounts[ch] || 0) + 1;
       if (lead.capiStatus === 'success') channelCapiSuccess[ch] = (channelCapiSuccess[ch] || 0) + 1;
 
-      // Platform attribution
-      const p = (lead.platform || 'Facebook').toLowerCase();
-      const isIg = p.includes('insta') || p === 'ig';
-      if (isIg) {
-        platformStats.instagram.joins++;
-        if (isChanJoin) channelPlatformStats.instagram.joins++;
-        else botPlatformStats.instagram.joins++;
-      } else {
-        platformStats.facebook.joins++;
-        if (isChanJoin) channelPlatformStats.facebook.joins++;
-        else botPlatformStats.facebook.joins++;
+      // Platform attribution (ONLY when genuinely present from ad parameter)
+      if (lead.platform) {
+        const p = lead.platform.toLowerCase();
+        const isIg = p.includes('insta') || p === 'ig';
+        if (isIg) {
+          platformStats.instagram.joins++;
+          if (isChanJoin) channelPlatformStats.instagram.joins++;
+          else botPlatformStats.instagram.joins++;
+        } else if (p.includes('face') || p === 'fb') {
+          platformStats.facebook.joins++;
+          if (isChanJoin) channelPlatformStats.facebook.joins++;
+          else botPlatformStats.facebook.joins++;
+        }
       }
 
-      // Placement attribution
-      const pl = (lead.placement || 'Feed').toLowerCase();
-      let plKey = 'feed';
-      if (pl.includes('reel')) plKey = 'reels';
-      else if (pl.includes('stor')) plKey = 'stories';
+      // Placement attribution (ONLY when genuinely present from ad placement)
+      if (lead.placement) {
+        const pl = lead.placement.toLowerCase();
+        let plKey = null;
+        if (pl.includes('reel')) plKey = 'reels';
+        else if (pl.includes('stor')) plKey = 'stories';
+        else if (pl.includes('feed')) plKey = 'feed';
 
-      placementStats[plKey].joins++;
-      if (isChanJoin) channelPlacementStats[plKey].joins++;
-      else botPlacementStats[plKey].joins++;
+        if (plKey) {
+          placementStats[plKey].joins++;
+          if (isChanJoin) channelPlacementStats[plKey].joins++;
+          else botPlacementStats[plKey].joins++;
+        }
+      }
 
       // Geo attribution (Only real IP-detected geo)
       if (lead.state) {
@@ -962,27 +969,34 @@ const db = {
         else botDeviceStats.Android++;
       }
 
-      // Platform & Placement Clicks
-      const p = (clk.platform || 'Facebook').toLowerCase();
-      const isIg = p.includes('insta') || p === 'ig';
-      if (isIg) {
-        platformStats.instagram.clicks++;
-        if (isChan) channelPlatformStats.instagram.clicks++;
-        else botPlatformStats.instagram.clicks++;
-      } else {
-        platformStats.facebook.clicks++;
-        if (isChan) channelPlatformStats.facebook.clicks++;
-        else botPlatformStats.facebook.clicks++;
+      // Platform & Placement Clicks (ONLY when genuinely present)
+      if (clk.platform) {
+        const p = clk.platform.toLowerCase();
+        const isIg = p.includes('insta') || p === 'ig';
+        if (isIg) {
+          platformStats.instagram.clicks++;
+          if (isChan) channelPlatformStats.instagram.clicks++;
+          else botPlatformStats.instagram.clicks++;
+        } else if (p.includes('face') || p === 'fb') {
+          platformStats.facebook.clicks++;
+          if (isChan) channelPlatformStats.facebook.clicks++;
+          else botPlatformStats.facebook.clicks++;
+        }
       }
 
-      const pl = (clk.placement || 'Feed').toLowerCase();
-      let plKey = 'feed';
-      if (pl.includes('reel')) plKey = 'reels';
-      else if (pl.includes('stor')) plKey = 'stories';
+      if (clk.placement) {
+        const pl = clk.placement.toLowerCase();
+        let plKey = null;
+        if (pl.includes('reel')) plKey = 'reels';
+        else if (pl.includes('stor')) plKey = 'stories';
+        else if (pl.includes('feed')) plKey = 'feed';
 
-      placementStats[plKey].clicks++;
-      if (isChan) channelPlacementStats[plKey].clicks++;
-      else botPlacementStats[plKey].clicks++;
+        if (plKey) {
+          placementStats[plKey].clicks++;
+          if (isChan) channelPlacementStats[plKey].clicks++;
+          else botPlacementStats[plKey].clicks++;
+        }
+      }
 
       if (clk.state) {
         stateCounts[clk.state] = (stateCounts[clk.state] || 0) + 1;
@@ -1150,27 +1164,34 @@ const db = {
           if (isToday) channelTodayCounts[ch] = (channelTodayCounts[ch] || 0) + 1;
           if (lead.capiStatus === 'success') channelCapiSuccess[ch] = (channelCapiSuccess[ch] || 0) + 1;
 
-          // Platform & Placement Joins
-          const p = (lead.platform || 'Facebook').toLowerCase();
-          const isIg = p.includes('insta') || p === 'ig';
-          if (isIg) {
-            platformStats.instagram.joins++;
-            if (isChanJoin) channelPlatformStats.instagram.joins++;
-            else botPlatformStats.instagram.joins++;
-          } else {
-            platformStats.facebook.joins++;
-            if (isChanJoin) channelPlatformStats.facebook.joins++;
-            else botPlatformStats.facebook.joins++;
+          // Platform & Placement Joins (ONLY when genuinely present)
+          if (lead.platform) {
+            const p = lead.platform.toLowerCase();
+            const isIg = p.includes('insta') || p === 'ig';
+            if (isIg) {
+              platformStats.instagram.joins++;
+              if (isChanJoin) channelPlatformStats.instagram.joins++;
+              else botPlatformStats.instagram.joins++;
+            } else if (p.includes('face') || p === 'fb') {
+              platformStats.facebook.joins++;
+              if (isChanJoin) channelPlatformStats.facebook.joins++;
+              else botPlatformStats.facebook.joins++;
+            }
           }
 
-          const pl = (lead.placement || 'Feed').toLowerCase();
-          let plKey = 'feed';
-          if (pl.includes('reel')) plKey = 'reels';
-          else if (pl.includes('stor')) plKey = 'stories';
+          if (lead.placement) {
+            const pl = lead.placement.toLowerCase();
+            let plKey = null;
+            if (pl.includes('reel')) plKey = 'reels';
+            else if (pl.includes('stor')) plKey = 'stories';
+            else if (pl.includes('feed')) plKey = 'feed';
 
-          placementStats[plKey].joins++;
-          if (isChanJoin) channelPlacementStats[plKey].joins++;
-          else botPlacementStats[plKey].joins++;
+            if (plKey) {
+              placementStats[plKey].joins++;
+              if (isChanJoin) channelPlacementStats[plKey].joins++;
+              else botPlacementStats[plKey].joins++;
+            }
+          }
 
           // Geo attribution (Only real IP-detected geo)
           if (lead.state) {
@@ -1207,27 +1228,34 @@ const db = {
             else botDeviceStats.Android++;
           }
 
-          // Platform & Placement Clicks
-          const p = (clk.platform || 'Facebook').toLowerCase();
-          const isIg = p.includes('insta') || p === 'ig';
-          if (isIg) {
-            platformStats.instagram.clicks++;
-            if (isChan) channelPlatformStats.instagram.clicks++;
-            else botPlatformStats.instagram.clicks++;
-          } else {
-            platformStats.facebook.clicks++;
-            if (isChan) channelPlatformStats.facebook.clicks++;
-            else botPlatformStats.facebook.clicks++;
+          // Platform & Placement Clicks (ONLY when genuinely present)
+          if (clk.platform) {
+            const p = clk.platform.toLowerCase();
+            const isIg = p.includes('insta') || p === 'ig';
+            if (isIg) {
+              platformStats.instagram.clicks++;
+              if (isChan) channelPlatformStats.instagram.clicks++;
+              else botPlatformStats.instagram.clicks++;
+            } else if (p.includes('face') || p === 'fb') {
+              platformStats.facebook.clicks++;
+              if (isChan) channelPlatformStats.facebook.clicks++;
+              else botPlatformStats.facebook.clicks++;
+            }
           }
 
-          const pl = (clk.placement || 'Feed').toLowerCase();
-          let plKey = 'feed';
-          if (pl.includes('reel')) plKey = 'reels';
-          else if (pl.includes('stor')) plKey = 'stories';
+          if (clk.placement) {
+            const pl = clk.placement.toLowerCase();
+            let plKey = null;
+            if (pl.includes('reel')) plKey = 'reels';
+            else if (pl.includes('stor')) plKey = 'stories';
+            else if (pl.includes('feed')) plKey = 'feed';
 
-          placementStats[plKey].clicks++;
-          if (isChan) channelPlacementStats[plKey].clicks++;
-          else botPlacementStats[plKey].clicks++;
+            if (plKey) {
+              placementStats[plKey].clicks++;
+              if (isChan) channelPlacementStats[plKey].clicks++;
+              else botPlacementStats[plKey].clicks++;
+            }
+          }
 
           if (clk.state) {
             stateCounts[clk.state] = (stateCounts[clk.state] || 0) + 1;

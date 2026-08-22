@@ -1548,10 +1548,30 @@ function renderChannelOnlyCards(breakdown) {
   const container = document.getElementById('channelListContainerOnly');
   if (!container) return;
 
-  const channelsOnly = breakdown.filter(c => c.destinationType === 'channel');
+  const list = [];
+  const tagsSeen = new Set();
+
+  for (const ch of (allChannels || []).filter(c => c.destinationType === 'channel')) {
+    tagsSeen.add(ch.tag);
+    const b = (breakdown || []).find(item => item.tag === ch.tag) || {};
+    list.push({
+      tag: ch.tag,
+      name: ch.name || ch.tag,
+      totalJoins: b.totalJoins !== undefined ? b.totalJoins : (ch.totalJoins || 0),
+      todayJoins: b.todayJoins !== undefined ? b.todayJoins : 0,
+      capiSuccess: b.capiSuccess !== undefined ? b.capiSuccess : 0
+    });
+  }
+
+  for (const item of (breakdown || []).filter(c => c.destinationType === 'channel')) {
+    if (!tagsSeen.has(item.tag)) {
+      list.push(item);
+    }
+  }
+
   const query = (document.getElementById('searchChannelPage')?.value || '').toLowerCase().trim();
 
-  let filtered = channelsOnly;
+  let filtered = list;
   if (query) {
     filtered = filtered.filter(i => 
       (i.name && i.name.toLowerCase().includes(query)) ||
@@ -1562,7 +1582,7 @@ function renderChannelOnlyCards(breakdown) {
   if (filtered.length === 0) {
     container.innerHTML = `
       <div class="empty-state py-4 text-center" style="grid-column: 1/-1;">
-        <p class="text-muted" style="font-size:0.85rem;">No Telegram channels found.</p>
+        <p class="text-muted" style="font-size:0.85rem;">No active Telegram channels found.</p>
       </div>
     `;
     return;

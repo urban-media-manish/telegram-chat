@@ -2345,3 +2345,81 @@ body {
   border: 1px solid rgba(239, 68, 68, 0.25) !important;
 }
 
+/* 2x2 Symmetric Intelligence Hub Grid */
+.intelligence-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .intelligence-hub-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* User Table Cell & Avatar */
+.user-cell {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+}
+
+.user-avatar {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #06b6d4, #38bdf8);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 800 !important;
+  color: #fff !important;
+  font-size: 0.9rem !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.25) !important;
+}
+
+.user-name {
+  font-weight: 700 !important;
+  color: #fff !important;
+  font-size: 0.9rem !important;
+  line-height: 1.2 !important;
+}
+
+.user-handle {
+  font-size: 0.75rem !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  margin-top: 2px !important;
+}
+
+.user-id {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.channel-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
+  padding: 0.25rem 0.65rem !important;
+  border-radius: 6px !important;
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  background: rgba(56, 189, 248, 0.12) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.25) !important;
+}
+
+.param-code {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  padding: 0.2rem 0.5rem !important;
+  border-radius: 6px !important;
+  font-family: monospace !important;
+  font-size: 0.78rem !important;
+  color: #c084fc !important;
+}
+
+

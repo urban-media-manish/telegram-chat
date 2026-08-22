@@ -776,17 +776,19 @@ function initNotificationToggle() {
 
   function updateButtonState() {
     if (!('Notification' in window)) {
-      btn.innerHTML = '🔔 Notifications (Unsupported)';
+      btn.innerHTML = '🔔';
       btn.disabled = true;
       return;
     }
 
     if (Notification.permission === 'granted') {
-      btn.innerHTML = '<span style="color:#10b981;">●</span> 🔔 Notifications Active';
+      btn.innerHTML = '🔔';
       btn.classList.add('active');
+      btn.title = 'Notifications Active';
     } else {
-      btn.innerHTML = '🔔 Enable Notifications';
+      btn.innerHTML = '🔔';
       btn.classList.remove('active');
+      btn.title = 'Click to Enable Notifications';
     }
   }
 

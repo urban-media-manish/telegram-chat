@@ -61,6 +61,12 @@ async function loadClientInfo() {
       const titleEl = document.getElementById('clientBrandTitle');
       if (titleEl) titleEl.textContent = brandName;
 
+      const titleMobileEl = document.getElementById('clientBrandTitleMobile');
+      if (titleMobileEl) titleMobileEl.textContent = brandName;
+
+      const drawerBrandEl = document.getElementById('clientDrawerBrand');
+      if (drawerBrandEl) drawerBrandEl.textContent = brandName;
+
       const pageTitle = document.getElementById('clientPageTitle');
       if (pageTitle) pageTitle.textContent = `${brandName} — Live Support Chat`;
 
@@ -79,6 +85,56 @@ async function loadClientInfo() {
     }
   } catch (err) {
     console.warn('Could not load client info:', err);
+  }
+}
+
+// ─── Mobile Slide Drawer & Session Handlers ──────────────────────────────────
+window.toggleClientDrawer = function(open) {
+  const drawer = document.getElementById('clientDrawer');
+  const overlay = document.getElementById('clientDrawerOverlay');
+  if (!drawer || !overlay) return;
+  const shouldOpen = open !== undefined ? open : !drawer.classList.contains('open');
+  if (shouldOpen) {
+    drawer.classList.add('open');
+    overlay.classList.add('active');
+    updateDrawerNotificationText();
+  } else {
+    drawer.classList.remove('open');
+    overlay.classList.remove('active');
+  }
+};
+
+window.lockClientSession = function() {
+  if (confirm('Lock Live Chat session?')) {
+    localStorage.removeItem(`teletrack_client_auth_${currentChannelTag || 'default'}`);
+    window.location.reload();
+  }
+};
+
+window.handleDrawerNotification = async function() {
+  if (!('Notification' in window)) {
+    alert('Notifications not supported in this browser.');
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    playNotificationChime();
+    showSystemNotification('Notifications Active', '✅ Live chat sound and alerts are working!');
+    alert('🔔 Notifications are active and working!');
+  } else {
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+      playNotificationChime();
+      showSystemNotification('Notifications Enabled!', '🎉 You will receive alerts on new messages.');
+    }
+  }
+  updateDrawerNotificationText();
+  toggleClientDrawer(false);
+};
+
+function updateDrawerNotificationText() {
+  const textEl = document.getElementById('drawerNotificationText');
+  if (textEl && ('Notification' in window)) {
+    textEl.textContent = Notification.permission === 'granted' ? '🔔 Notifications Active (Test)' : '🔔 Enable Notifications';
   }
 }
 

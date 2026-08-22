@@ -72,27 +72,30 @@
       border: 1px solid rgba(99, 102, 241, 0.35);
       margin-left: 0.4rem;
     }
+    /* Desktop vs Mobile Header Split */
+    .client-navbar-desktop {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+    .client-navbar-mobile {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+
     @media (max-width: 768px) {
+      .client-navbar-desktop {
+        display: none !important;
+      }
+      .client-navbar-mobile {
+        display: flex !important;
+      }
       .client-navbar {
-        height: 48px;
-        padding: 0.3rem 0.65rem;
-      }
-      .brand-title {
-        font-size: 0.95rem !important;
-      }
-      .brand-subtitle {
-        display: none !important;
-      }
-      .live-indicator {
-        display: none !important;
-      }
-      .nav-btn-text {
-        display: none !important;
-      }
-      .client-navbar .btn {
-        padding: 0.35rem 0.55rem !important;
-        font-size: 0.85rem !important;
-        border-radius: 8px !important;
+        height: 54px !important;
+        padding: 0.55rem 1rem !important;
       }
       .chat-window {
         display: flex;
@@ -117,31 +120,130 @@
         display: none;
       }
     }
+
+    /* Client Mobile Slide Drawer */
+    .client-drawer-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+    }
+    .client-drawer-overlay.active {
+      display: block;
+    }
+    .client-drawer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 280px;
+      max-width: 85vw;
+      background: #0d1222;
+      border-right: 1px solid rgba(255,255,255,0.1);
+      z-index: 210;
+      transform: translateX(-100%);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 10px 0 30px rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+    }
+    .client-drawer.open {
+      transform: translateX(0);
+    }
+    .client-drawer-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Clean Modern Client Header Matching Screenshot Exactly -->
-  <header class="client-navbar" style="background: rgba(9, 12, 22, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding: 0.65rem 1.15rem; display: flex; align-items: center; justify-content: space-between; height: 56px; box-sizing: border-box; flex-shrink: 0;">
+  <!-- Responsive Client Header -->
+  <header class="client-navbar" style="background: rgba(9, 12, 22, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding: 0.55rem 1.25rem; height: 56px; box-sizing: border-box; flex-shrink: 0;">
     
-    <!-- Left Hamburger Menu Button -->
-    <button class="btn-hamburger" id="btnHamburgerMenu" onclick="toggleClientDrawer()" title="Menu">
-      ☰
-    </button>
+    <!-- 💻 Desktop View: Full Brand + Status + Actions -->
+    <div class="client-navbar-desktop">
+      <div style="display: flex; align-items: center; gap: 0.65rem;">
+        <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
+          💬
+        </div>
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.45rem;">
+            <h1 class="brand-title" id="clientBrandTitle" style="font-size: 1.05rem; font-weight: 800; color: #fff; margin: 0;">Live Support Chat</h1>
+            <span class="client-badge-tag" id="clientBadgeTag">Channel</span>
+          </div>
+          <p class="brand-subtitle" id="clientBrandSubtitle" style="margin: 0; font-size: 0.72rem; color: rgba(255,255,255,0.5);">Direct WhatsApp-Style Customer Support</p>
+        </div>
+      </div>
 
-    <!-- Center Brand (TeleTrack) -->
-    <div class="mobile-brand-center">
-      <span class="brand-bolt">⚡</span>
-      <span id="clientBrandTitle">TeleTrack</span>
-      <span class="client-badge-tag" id="clientBadgeTag" style="display:none;">AD1</span>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <div class="live-indicator" style="margin-right: 0.5rem; display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #10b981; font-weight: 700;">
+          <span class="pulse-dot"></span> <span id="clientLiveStatus">Live Active</span>
+        </div>
+        <button class="btn btn-outline btn-sm" id="btnToggleNotification" title="Toggle Notifications">
+          🔔 <span class="nav-btn-text">Notifications</span>
+        </button>
+        <button class="btn btn-outline btn-pwa btn-sm" id="btnInstallApp" title="Add to Home Screen">
+          📲 <span class="nav-btn-text">Install</span>
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="lockClientSession()" title="Lock Chat Session" style="border-color: rgba(239,68,68,0.3); color: #f87171;">
+          🔒 Lock
+        </button>
+      </div>
     </div>
 
-    <!-- Right Lock Button -->
-    <button class="btn-lock-mobile" onclick="lockClientSession()" title="Lock Session">
-      🔒
-    </button>
+    <!-- 📱 Mobile Phone View: Exact Screenshot 2 (Hamburger + Centered Brand + Lock) -->
+    <div class="client-navbar-mobile">
+      <!-- Left Hamburger Menu Button -->
+      <button class="btn-hamburger" onclick="toggleClientDrawer(true)" title="Menu">
+        ☰
+      </button>
+
+      <!-- Center Brand -->
+      <div class="mobile-brand-center">
+        <span class="brand-bolt">⚡</span>
+        <span id="clientBrandTitleMobile">TeleTrack</span>
+      </div>
+
+      <!-- Right Lock Button -->
+      <button class="btn-lock-mobile" onclick="lockClientSession()" title="Lock Session">
+        🔒
+      </button>
+    </div>
 
   </header>
+
+  <!-- Mobile Slide-Out Actions Drawer -->
+  <div class="client-drawer-overlay" id="clientDrawerOverlay" onclick="toggleClientDrawer(false)"></div>
+  <aside class="client-drawer" id="clientDrawer">
+    <div class="client-drawer-header">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.3rem;">⚡</span>
+        <span style="font-weight: 800; font-size: 1.05rem; color: #fff;" id="clientDrawerBrand">TeleTrack</span>
+      </div>
+      <button class="modal-close" onclick="toggleClientDrawer(false)" style="background:none; border:none; color:rgba(255,255,255,0.7); font-size:1.4rem; cursor:pointer;">&times;</button>
+    </div>
+    <div style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+      <button class="btn btn-outline" onclick="handleDrawerNotification()" style="justify-content: flex-start; gap: 0.6rem; padding: 0.75rem 1rem; border-radius: 10px; width: 100%;">
+        <span>🔔</span> <span id="drawerNotificationText">Enable Notifications</span>
+      </button>
+      <button class="btn btn-outline" onclick="loadConversations(); toggleClientDrawer(false);" style="justify-content: flex-start; gap: 0.6rem; padding: 0.75rem 1rem; border-radius: 10px; width: 100%;">
+        <span>🔄</span> Refresh Chats
+      </button>
+      <button class="btn btn-outline btn-pwa" onclick="triggerPwaInstall(); toggleClientDrawer(false);" style="justify-content: flex-start; gap: 0.6rem; padding: 0.75rem 1rem; border-radius: 10px; width: 100%;">
+        <span>📲</span> Add to Home Screen
+      </button>
+      <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 0.5rem 0;"></div>
+      <button class="btn" onclick="lockClientSession()" style="justify-content: flex-start; gap: 0.6rem; padding: 0.75rem 1rem; border-radius: 10px; width: 100%; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171;">
+        <span>🔒</span> Lock Portal Session
+      </button>
+    </div>
+  </aside>
 
   <!-- Fullscreen WhatsApp Container -->
   <div class="fullscreen-chat-body">

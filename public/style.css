@@ -395,22 +395,25 @@ body {
 }
 
 .btn-hamburger {
-  background: rgba(255, 255, 255, 0.06) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   color: #ffffff !important;
-  width: 40px !important;
-  height: 40px !important;
-  border-radius: 12px !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+  border-radius: 14px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 1.2rem !important;
+  font-size: 1.25rem !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
+  padding: 0 !important;
 }
 
 .btn-hamburger:hover, .btn-hamburger:active {
-  background: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
   transform: scale(0.96);
 }
 
@@ -418,34 +421,39 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 800;
   color: #ffffff;
   letter-spacing: -0.02em;
 }
 
 .mobile-brand-center .brand-bolt {
-  font-size: 1.3rem;
-  filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.6));
+  font-size: 1.35rem;
+  color: #f59e0b;
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.7));
 }
 
 .btn-lock-mobile {
-  background: rgba(239, 68, 68, 0.12) !important;
-  border: 1px solid rgba(239, 68, 68, 0.28) !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.18) !important;
   color: #ffffff !important;
-  width: 40px !important;
-  height: 40px !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
   border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 1.1rem !important;
+  font-size: 1.15rem !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
+  padding: 0 !important;
 }
 
 .btn-lock-mobile:hover, .btn-lock-mobile:active {
-  background: rgba(239, 68, 68, 0.22) !important;
+  background: rgba(239, 68, 68, 0.18) !important;
   transform: scale(0.96);
 }
 

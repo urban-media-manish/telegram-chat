@@ -121,28 +121,26 @@
 </head>
 <body>
 
-  <!-- Clean Modern Client Header -->
-  <header class="client-navbar" style="background: rgba(9, 12, 22, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding: 0.55rem 1rem; display: flex; align-items: center; justify-content: space-between;">
-    <div style="display: flex; align-items: center; gap: 0.65rem;">
-      <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
-        💬
-      </div>
-      <div>
-        <div style="display: flex; align-items: center; gap: 0.45rem;">
-          <h1 class="brand-title" id="clientBrandTitle" style="font-size: 0.98rem; font-weight: 800; color: #fff; margin: 0;">Live Support Chat</h1>
-          <span class="client-badge-tag" id="clientBadgeTag">Channel</span>
-        </div>
-      </div>
+  <!-- Clean Modern Client Header Matching Screenshot Exactly -->
+  <header class="client-navbar" style="background: rgba(9, 12, 22, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding: 0.65rem 1.15rem; display: flex; align-items: center; justify-content: space-between; height: 56px; box-sizing: border-box; flex-shrink: 0;">
+    
+    <!-- Left Hamburger / Notifications Button -->
+    <button id="btnToggleNotification" class="btn-hamburger btn-icon-only" title="Toggle Notifications">
+      ☰
+    </button>
+
+    <!-- Center Brand (TeleTrack) -->
+    <div class="mobile-brand-center">
+      <span class="brand-bolt">⚡</span>
+      <span id="clientBrandTitle">TeleTrack</span>
+      <span class="client-badge-tag" id="clientBadgeTag" style="display:none;">AD1</span>
     </div>
 
-    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
-      <button id="btnToggleNotification" class="btn-icon-only" title="Toggle Notifications" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 36px; height: 36px; min-width: 36px; max-width: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; overflow: hidden;">
-        🔔
-      </button>
-      <button class="btn-lock-mobile" onclick="lockClientSession()" title="Lock Chat" style="width: 36px; height: 36px; min-width: 36px; max-width: 36px; border-radius: 50%; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.28); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;">
-        🔒
-      </button>
-    </div>
+    <!-- Right Lock Button -->
+    <button class="btn-lock-mobile" onclick="lockClientSession()" title="Lock Session">
+      🔒
+    </button>
+
   </header>
 
   <!-- Fullscreen WhatsApp Container -->

@@ -1122,22 +1122,8 @@ async function loadStats() {
       // Render Bot Accounts Live Performance Breakdown (STRICTLY BOT ACCOUNTS ONLY)
       const chStatsCont = document.getElementById('channelBreakdownContainer') || document.getElementById('channelStatsContainer');
       if (chStatsCont) {
-        const botAccounts = allChannels.filter(ch => ch.destinationType === 'bot' || (!ch.link?.includes('t.me/+') && !ch.link?.includes('joinchat')));
-        const breakdown = [];
-
-        for (const ch of botAccounts) {
-          breakdown.push({
-            tag: ch.tag,
-            name: ch.name || ch.tag,
-            destinationType: 'bot',
-            totalJoins: stats.channelCounts?.[ch.tag] || 0,
-            todayJoins: stats.channelTodayCounts?.[ch.tag] || 0,
-            capiSuccess: stats.channelBreakdown?.find(b => b.tag === ch.tag)?.capiSuccess || 0,
-            link: ch.link || ''
-          });
-        }
-
-        window.currentBreakdownData = breakdown;
+        const botAccounts = (stats.channelBreakdown || []).filter(b => b.destinationType === 'bot');
+        window.currentBreakdownData = botAccounts;
         renderFilteredBreakdownCards();
       }
 
